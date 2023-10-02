@@ -1,5 +1,5 @@
 import abc
-import typing
+import meshio
 
 import numpy as np
 from numpy.typing import ArrayLike
@@ -9,12 +9,12 @@ class ForwardModel(metaclass=abc.ABCMeta):
     @classmethod
     def __subclasshook__(cls, subclass):
         return (
-            hasattr(subclass, "jacobian")
-            and callable(subclass.jacobian)
+            hasattr(subclass, "frechet_derivative")
+            and callable(subclass.frechet_derivative)
             and hasattr(subclass, "neumann_to_dirichlet")
             and callable(subclass.neumann_to_dirichlet)
-            and hasattr(subclass, "jacobian")
-            and callable(subclass.jacobian)
+            and hasattr(subclass, "frechet_derivative")
+            and callable(subclass.frechet_derivative)
             or NotImplemented
         )
 
@@ -24,8 +24,8 @@ class ForwardModel(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def jacobian(self, current_injection: ArrayLike) -> ArrayLike:
-        """Return Jacobian"""
+    def frechet_derivative(self, current_injection: ArrayLike, mesh) -> ArrayLike:
+        """Return frechet_derivative on mesh"""
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -39,8 +39,8 @@ class FenicsForwardModel(ForwardModel):
         """Compute Neumann to Dirichlet map"""
         pass
 
-    def jacobian(self, current_injection: ArrayLike) -> ArrayLike:
-        """Return Jacobian"""
+    def frechet_derivative(self, current_injection: ArrayLike) -> ArrayLike:
+        """Return frechet_derivative"""
         pass
 
 
@@ -61,5 +61,5 @@ class CompleteElectrodeModel:
         sigma = np.clip(sigma, self.sigmamin, self.sigmamax)
         z = np.clip(z, self.zmin, self.zmax)
 
-    def jacobian(self, sigma, z):
+    def frechet_derivative(self, sigma, z):
         pass
