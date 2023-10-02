@@ -33,6 +33,22 @@ class ForwardModel(metaclass=abc.ABCMeta):
         """Return solution to generalized Poisson problem"""
         raise NotImplementedError
 
+
+class FenicsForwardModel(ForwardModel):
+    def neumann_to_dirichlet(self, current_injection: ArrayLike) -> ArrayLike:
+        """Compute Neumann to Dirichlet map"""
+        pass
+
+    def jacobian(self, current_injection: ArrayLike) -> ArrayLike:
+        """Return Jacobian"""
+        pass
+
+
+    def poisson(self, pertubation: ArrayLike, current_injection: ArrayLike) -> ArrayLike:
+        """Return solution to generalized Poisson problem"""
+        pass
+
+
 class CompleteElectrodeModel:
     def __init__(self, injection, **kwargs):
         self.injection = injection
