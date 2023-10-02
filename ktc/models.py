@@ -1,6 +1,5 @@
 import numpy as np
 
-
 class CompleteElectrodeModel:
     def __init__(self, injection, **kwargs):
         self.injection = injection
