@@ -9,38 +9,41 @@ class ForwardModel(metaclass=abc.ABCMeta):
     @classmethod
     def __subclasshook__(cls, subclass):
         return (
-            hasattr(subclass, "frechet_derivative")
-            and callable(subclass.frechet_derivative)
-            and hasattr(subclass, "neumann_to_dirichlet")
-            and callable(subclass.neumann_to_dirichlet)
-            and hasattr(subclass, "frechet_derivative")
-            and callable(subclass.frechet_derivative)
+            hasattr(subclass, "jacobian")
+            and callable(subclass.jacobian)
+            and hasattr(subclass, "solve")
+            and callable(subclass.solve)
+            and hasattr(subclass, "jacobian")
+            and callable(subclass.jacobian)
             or NotImplemented
         )
 
     @abc.abstractmethod
-    def neumann_to_dirichlet(self, current_injection: ArrayLike) -> ArrayLike:
+    def solve(self, current_injection: ArrayLike) -> (ArrayLike, ArrayLike):
         """Compute Neumann to Dirichlet map"""
         raise NotImplementedError
 
     @abc.abstractmethod
-    def frechet_derivative(self, current_injection: ArrayLike, mesh) -> ArrayLike:
-        """Return frechet_derivative on mesh"""
+    def jacobian(self, mesh) -> ArrayLike:
+        """Return jacobian on mesh"""
         raise NotImplementedError
 
     @abc.abstractmethod
-    def poisson(self, pertubation: ArrayLike, current_injection: ArrayLike) -> ArrayLike:
+    def poisson(self, pertubation: ArrayLike, u: ArrayLike) -> ArrayLike:
         """Return solution to generalized Poisson problem"""
         raise NotImplementedError
 
 
 class FenicsForwardModel(ForwardModel):
-    def neumann_to_dirichlet(self, current_injection: ArrayLike) -> ArrayLike:
+    def __init__(self) -> None:
+        super().__init__()
+    
+    def solve(self, current_injection: ArrayLike) -> ArrayLike:
         """Compute Neumann to Dirichlet map"""
         pass
 
-    def frechet_derivative(self, current_injection: ArrayLike) -> ArrayLike:
-        """Return frechet_derivative"""
+    def jacobian(self, current_injection: ArrayLike) -> ArrayLike:
+        """Return jacobian"""
         pass
 
 
@@ -61,5 +64,5 @@ class CompleteElectrodeModel:
         sigma = np.clip(sigma, self.sigmamin, self.sigmamax)
         z = np.clip(z, self.zmin, self.zmax)
 
-    def frechet_derivative(self, sigma, z):
+    def jacobian(self, sigma, z):
         pass
