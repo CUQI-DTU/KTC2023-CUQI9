@@ -37,7 +37,7 @@ class ForwardModel(metaclass=abc.ABCMeta):
 class FenicsForwardModel(ForwardModel):
     def __init__(self) -> None:
         super().__init__()
-    
+
     def solve(self, current_injection: ArrayLike) -> ArrayLike:
         """Compute Neumann to Dirichlet map"""
         pass
