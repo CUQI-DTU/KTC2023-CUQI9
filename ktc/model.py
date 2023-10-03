@@ -46,8 +46,9 @@ class FenicsForwardModel(ForwardModel):
         """Return jacobian"""
         pass
 
-
-    def poisson(self, pertubation: ArrayLike, current_injection: ArrayLike) -> ArrayLike:
+    def poisson(
+        self, pertubation: ArrayLike, current_injection: ArrayLike
+    ) -> ArrayLike:
         """Return solution to generalized Poisson problem"""
         pass
 
