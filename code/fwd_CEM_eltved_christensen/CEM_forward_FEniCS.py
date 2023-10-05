@@ -15,8 +15,9 @@ from mshr import *
 from dolfin import *
 from matplotlib import pyplot as plt
 from utils import *
+import scipy.io as io
 
-L = 20
+L = 32
 
 # Define vector of contact impedance
 z = 0.1
@@ -26,12 +27,20 @@ for i in range (L):
 
 # Define domain
 R = 1 # radius of circle
-n = 300 # number o f polygons to approximate circle
-F = 50 # fineness of mesh
+n = 300#300 # 300 # number o f polygons to approximate circle
+F = 20  # 50 # fineness of mesh
 mesh = generate_mesh(Circle(Point( 0, 0), R, n) ,F) # generate mesh
 N = mesh.num_entities( 2 )
+subdomains = build_subdomains(L, mesh)
 print N
 
+xdmf = XDMFFile("file_sub.xdmf")
+xdmf.write(subdomains)
+
+
+
+
+#%%
 # Define conductivity
 class sigma_fun( Expression ):
     def eval( self , values , x ):
@@ -63,12 +72,39 @@ sigma_h = sigma_h_fun( element=H1.ufl_element() )
 # AMAL: which sigma to use?
 sigma_fenics_fun = interpolate(sigma, H1)
 
-I = np.zeros(L)
-I[0] = 1
-I[1] = -1
-sol = solver(sigma_fenics_fun, L, I, Z, mesh)
+# Loop over current patterns 
+num_inj = 76 # Number of injection pattern
 
-Q = sol.split()
-print Q[0].compute_vertex_values()
-plot(Q[1])
-plt.savefig("q1.png")
+mat_file = io.loadmat("ref.mat")
+Imatr = mat_file["Injref"]
+
+Q = np.zeros((L,num_inj))
+q_list = []
+for i in range(num_inj):
+    Q_i , q = solver(sigma_fenics_fun, L, Imatr[:,i], Z, mesh, subdomains)
+    q_list.append(q)
+    Q[:, i] = Q_i
+
+
+#Q , q, subdomains = solver_4_quarters(sigma_fenics_fun, I, Z, mesh)
+
+#Q = sol.split()
+#print Q[0].compute_vertex_values()
+#plot(Q[1])
+#plt.savefig("q1.png")
+#plt.figure()
+#im = plot(q[2])
+#plt.colorbar(im)
+#plt.savefig("q2_"+str(L)+".png")
+
+#%%
+for i, q in enumerate(q_list):
+    plt.figure()
+    h_func = Function(H1)
+    h_func.vector().set_local(q.vector().get_local()[L:-1])
+    h_func.vector().get_local()
+    im = plot(h_func)
+    plt.colorbar(im)
+    plt.savefig("new_q2_"+str(L)+"_"+str(i)+".png")
+
+# %%
