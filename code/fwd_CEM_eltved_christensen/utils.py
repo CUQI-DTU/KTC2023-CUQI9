@@ -41,22 +41,19 @@ def build_subdomains(L, mesh):
 
   for i in range ( 1 , L+1) :
     shift_theta = np.pi/2 - np.pi/(2*L)
-    print "shift_theta", shift_theta
-    print L
+    #print "shift_theta", shift_theta
+    #print L
     theta1 =np.mod( ( i -1) *( e_l+d_e ) + shift_theta, 2*np.pi)
     theta2 =np.mod( theta1+e_l , 2*np.pi) 
-    print i
-    print theta1
-    print theta2
+    #print i
+    #print theta1
+    #print theta2
     e1 = e ( ) # create instance
     e1 .mark( subdomains , i ) # mark subdomain
 
   return subdomains
 
-
-def solver( sigma ,L, I , Z ,mesh, subdomains ) :
- # def 2 pi function
-
+def build_spaces(mesh, L, subdomains):
   R = FunctionSpace (mesh , "R" , 0 )
   H1 = FunctionSpace (mesh , "CG" , 1 )
 
@@ -78,12 +75,13 @@ def solver( sigma ,L, I , Z ,mesh, subdomains ) :
   # Define new measures associated with the boundaries
   dS = Measure ( 'ds' , domain=mesh ) [ subdomains ]
 
+  return V, dS
+   
+def build_b(sigma, Z, V, dS, L):
+
   # Define trial and test functions
   u = TrialFunction(V)
   v = TestFunction(V)
-
-
-  f = 0*dS ( 1 )
 
   B = sigma * inner ( nabla_grad (u [L ] ) , nabla_grad ( v [L ] ) ) *dx
 
@@ -91,20 +89,30 @@ def solver( sigma ,L, I , Z ,mesh, subdomains ) :
     B += 1/Z [ i ] * ( u [L]-u [ i ] )*( v [L]-v [ i ] ) *dS( i +1)
     B += ( v [L+1]*u [ i ] / assemble (1*dS ( i+1 ) ) ) *dS ( i+1 )
     B += (u [L+1]*v [ i ] / assemble (1*dS ( i+1 ) ) ) *dS ( i+1 )
+
+  return assemble(B)
+
+
+
+def solver(I, B, V, dS, L):# sigma ,L, I , Z ,mesh, subdomains ) 
+ # def 2 pi function
+
+  # Define trial and test functions
+  u = TrialFunction(V)
+  v = TestFunction(V)
+
+
+  f = 0*dS ( 1 )
+
+  for i in range (L) :
     f += ( I [ i ] * v [ i ] / assemble (1*dS ( i+1 ) ) ) *dS ( i+1)
 
-#f = 0*dS(1)
-#B = sigma*inner(nabla_grad(u[L]) , nabla_grad(v[L]))*dx
+  rhs = assemble(f)
 
- # for i in range(L):
- #   B += 1/Z*(u[L]-u[i])*(v[L]-v[i])*dS(i+1)
- #   B += (v[L+1]*u[i]/assemble(1*dS(i+1)))*dS(i+1) 
- #   B += (u[L+1]*v[i]/assemble(1*dS(i+1)))*dS(i+1)
- #   f += (I[i]*v[i]/assemble(1*dS(i+1)))*dS(i+1)
 
   # Compute solution
   q = Function (V)
-  solve(B == f , q )
+  solve(B, q.vector(), rhs)
 
   Q = q.vector().get_local()[:L]
 
