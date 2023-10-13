@@ -18,8 +18,10 @@ from utils import *
 import scipy.io as io
 from scipy.interpolate import RegularGridInterpolator
 
-L = 32
 case_name = 'case_ref' #'case1' , case3', 'case4', 'case_ref'
+KTC23_dir = './KTC23_data/'
+
+L = 32
 # Define vector of contact impedance
 z =  10e-6##0.1 # Impedence 
 Z = []
@@ -33,9 +35,8 @@ F = 50  # 50 # fineness of mesh
 mesh = generate_mesh(Circle(Point( 0, 0), R, n) ,F) # generate mesh
 N = mesh.num_entities( 2 )
 subdomains = build_subdomains(L, mesh)
-print N
 
-xdmf = XDMFFile("file_sub.xdmf")
+xdmf = XDMFFile(case_name+"file_sub.xdmf")
 xdmf.write(subdomains)
 V, dS = build_spaces(mesh, L, subdomains)
 
@@ -43,103 +44,74 @@ high_conductivity = 1e1
 low_conductivity =  1e-2
 background_conductivity = 0.8
 
-Imatr = io.loadmat("ref.mat")["Injref"]
+Imatr = io.loadmat(KTC23_dir+"ref.mat")["Injref"]
 
 if case_name == 'case1':
-    phantom_file_name = "true1.mat"
+    phantom_file_name = KTC23_dir+"true1.mat"
     phantom = io.loadmat(phantom_file_name)["truth"]
-    Uel_ref = io.loadmat("data1.mat")["Uel"]
+    Uel_ref = io.loadmat(KTC23_dir+"data1.mat")["Uel"]
 
 elif case_name == 'case2':
-    phantom_file_name = "true2.mat"
+    phantom_file_name = KTC23_dir+"true2.mat"
     phantom = io.loadmat(phantom_file_name)["truth"]
-    Uel_ref = io.loadmat("data2.mat")["Uel"]
+    Uel_ref = io.loadmat(KTC23_dir+"data2.mat")["Uel"]
 
 elif case_name == 'case3':
-    phantom_file_name = "true3.mat"
+    phantom_file_name = KTC23_dir+"true3.mat"
     phantom = io.loadmat(phantom_file_name)["truth"]
-    Uel_ref = io.loadmat("data3.mat")["Uel"]
+    Uel_ref = io.loadmat(KTC23_dir+"data3.mat")["Uel"]
 
 elif case_name == 'case4':
-    phantom_file_name = "true4.mat"
+    phantom_file_name = KTC23_dir+"true4.mat"
     phantom = io.loadmat(phantom_file_name)["truth"]
-    Uel_ref = io.loadmat("data4.mat")["Uel"]
+    Uel_ref = io.loadmat(KTC23_dir+"data4.mat")["Uel"]
 
 elif case_name == 'case_ref':
-    phantom_file_name = "true1.mat"
+    phantom_file_name = KTC23_dir+"true1.mat"
     phantom = io.loadmat(phantom_file_name)["truth"]
     phantom[:] = 0
-    Uel_ref = io.loadmat("ref.mat")["Uelref"]
+    Uel_ref = io.loadmat(KTC23_dir+"ref.mat")["Uelref"]
 
 else:
     raise Exception("unknown case")
 
 #%%
 # Define conductivity
-class sigma_fun( Expression ):
-    def eval( self , values , x ):
-        values[ 0 ] = 1
-
-
-# Define h
-# h is defined from file h_functions
-def h_fun(x , y ) :
-    return h_geometry (x , y )
-
-class sigma_h_fun( Expression ):
-    def eval( self , values , x ) :
-        values[ 0 ] = sigma ( x )+h_fun ( x [ 0 ] , x [ 1 ] )
-
 class inclusion( Expression ):
     def __init__(self, phantom, **kwargs ):
         x_grid = np.linspace(-1, 1, 256)
         y_grid = np.linspace(-1, 1, 256)
         self.interpolater = RegularGridInterpolator((x_grid, y_grid), phantom, method="nearest") 
-         
 
     def eval( self , values , x ) :
         values[ 0 ] = self.interpolater([ x [ 0 ] , x [ 1 ] ])
 
 
-ph1_float = np.zeros(phantom.shape)
-
-ph1_float[phantom == 0] = background_conductivity
-ph1_float[np.isclose(phantom, 1, rtol = 0.01)] = low_conductivity 
-ph1_float[phantom == 2] = high_conductivity
+phantom_float = np.zeros(phantom.shape)
+phantom_float[phantom == 0] = background_conductivity
+phantom_float[np.isclose(phantom, 1, rtol = 0.01)] = low_conductivity 
+phantom_float[phantom == 2] = high_conductivity
 
 plt.figure()
-im = plt.imshow(np.log(ph1_float))
+im = plt.imshow(phantom_float)
 plt.colorbar(im) #norm= 'log'
-plt.savefig(case_name+"ph_mod.png")
+plt.savefig(case_name+"_ph_mod.png")
 
-my_inclusion = inclusion(ph1_float, degree= 1) 
+my_inclusion = inclusion(phantom_float, degree= 1) 
 #%%
-
-# Define string names for later print
-sigmastr = "sigma=1"
-hstr = "h=0.3_geometry"
 
 # Define H1 room
 H1=FunctionSpace(mesh ,'CG' , 1)
-
-# Initiate functions
-sigma = sigma_fun( element=H1.ufl_element() )
-sigma_h = sigma_h_fun( element=H1.ufl_element() )
-
-# AMAL: which sigma to use?
-sigma_fenics_fun = interpolate(sigma, H1)
 
 # Loop over current patterns 
 num_inj = 76 # Number of injection pattern
 num_inj_tested = 76
 
-
-
 B = build_b(my_inclusion, Z, V, dS, L)
-
 Q = np.zeros((L,num_inj))
 Diff= np.zeros((L-1,num_inj)) 
 q_list = []
+
 for i in range(num_inj)[:num_inj_tested]:
     print "injection pattern", i
     Q_i , q = solver(Imatr[:,i], B, V, dS, L)
@@ -148,20 +120,7 @@ for i in range(num_inj)[:num_inj_tested]:
     Q[:, i] = Q_i
     Diff[:, i] = np.diff(Q_i)
 
-
-
-#Q , q, subdomains = solver_4_quarters(sigma_fenics_fun, I, Z, mesh)
-
-#Q = sol.split()
-#print Q[0].compute_vertex_values()
-#plot(Q[1])
-#plt.savefig("q1.png")
-#plt.figure()
-#im = plot(q[2])
-#plt.colorbar(im)
-#plt.savefig("q2_"+str(L)+".png")
-
-#%%
+#%% Plot potential solution for each injection pattern
 for i, q in enumerate(q_list):
     plt.figure()
     h_func = Function(H1)
@@ -193,7 +152,3 @@ plt.plot(-Uel_ref[:num_inj_tested*31].flatten()- Diff.flatten(order='F')[:num_in
 plt.plot(Diff.flatten(order='F')[:num_inj_tested*31], label= 'Model output')
 plt.legend()
 plt.savefig(case_name+"data_diff_and_model.png"+str(L)+"_"+str(i)+".png")
-
-
-
-# %%
