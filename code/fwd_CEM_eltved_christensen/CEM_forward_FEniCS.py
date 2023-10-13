@@ -19,7 +19,7 @@ import scipy.io as io
 from scipy.interpolate import RegularGridInterpolator
 
 L = 32
-
+case_name = 'case_ref' #'case1' , case3', 'case4', 'case_ref'
 # Define vector of contact impedance
 z =  10e-6##0.1 # Impedence 
 Z = []
@@ -37,9 +37,42 @@ print N
 
 xdmf = XDMFFile("file_sub.xdmf")
 xdmf.write(subdomains)
+V, dS = build_spaces(mesh, L, subdomains)
 
+high_conductivity = 1e1
+low_conductivity =  1e-2
+background_conductivity = 0.8
 
+Imatr = io.loadmat("ref.mat")["Injref"]
 
+if case_name == 'case1':
+    phantom_file_name = "true1.mat"
+    phantom = io.loadmat(phantom_file_name)["truth"]
+    Uel_ref = io.loadmat("data1.mat")["Uel"]
+
+elif case_name == 'case2':
+    phantom_file_name = "true2.mat"
+    phantom = io.loadmat(phantom_file_name)["truth"]
+    Uel_ref = io.loadmat("data2.mat")["Uel"]
+
+elif case_name == 'case3':
+    phantom_file_name = "true3.mat"
+    phantom = io.loadmat(phantom_file_name)["truth"]
+    Uel_ref = io.loadmat("data3.mat")["Uel"]
+
+elif case_name == 'case4':
+    phantom_file_name = "true4.mat"
+    phantom = io.loadmat(phantom_file_name)["truth"]
+    Uel_ref = io.loadmat("data4.mat")["Uel"]
+
+elif case_name == 'case_ref':
+    phantom_file_name = "true1.mat"
+    phantom = io.loadmat(phantom_file_name)["truth"]
+    phantom[:] = 0
+    Uel_ref = io.loadmat("ref.mat")["Uelref"]
+
+else:
+    raise Exception("unknown case")
 
 #%%
 # Define conductivity
@@ -67,17 +100,17 @@ class inclusion( Expression ):
     def eval( self , values , x ) :
         values[ 0 ] = self.interpolater([ x [ 0 ] , x [ 1 ] ])
 
-ph1 = io.loadmat("true1.mat")["truth"]
-ph1_float = np.zeros(ph1.shape)
 
-ph1_float[ph1 == 0] = 0.8
-ph1_float[np.isclose(ph1, 1, rtol = 0.01)] =  1e-2
-ph1_float[ph1 == 2] =1e1
+ph1_float = np.zeros(phantom.shape)
+
+ph1_float[phantom == 0] = background_conductivity
+ph1_float[np.isclose(phantom, 1, rtol = 0.01)] = low_conductivity 
+ph1_float[phantom == 2] = high_conductivity
 
 plt.figure()
 im = plt.imshow(np.log(ph1_float))
 plt.colorbar(im) #norm= 'log'
-plt.savefig("ph1_mod.png")
+plt.savefig(case_name+"ph_mod.png")
 
 my_inclusion = inclusion(ph1_float, degree= 1) 
 #%%
@@ -98,16 +131,18 @@ sigma_fenics_fun = interpolate(sigma, H1)
 
 # Loop over current patterns 
 num_inj = 76 # Number of injection pattern
+num_inj_tested = 76
 
-mat_file = io.loadmat("ref.mat")
-Imatr = mat_file["Injref"]
+
+
+B = build_b(my_inclusion, Z, V, dS, L)
 
 Q = np.zeros((L,num_inj))
 Diff= np.zeros((L-1,num_inj)) 
 q_list = []
-for i in range(num_inj)[:10]:
+for i in range(num_inj)[:num_inj_tested]:
     print "injection pattern", i
-    Q_i , q = solver(my_inclusion, L, Imatr[:,i], Z, mesh, subdomains)
+    Q_i , q = solver(Imatr[:,i], B, V, dS, L)
     q_list.append(q)
 
     Q[:, i] = Q_i
@@ -134,28 +169,31 @@ for i, q in enumerate(q_list):
     h_func.vector().get_local()
     im = plot(h_func)
     plt.colorbar(im)
-    plt.savefig("new_q2_"+str(L)+"_"+str(i)+".png")
+    plt.savefig(case_name+"new_q2_"+str(L)+"_"+str(i)+".png")
 
 # %%
 plt.figure()
 plt.plot(Q.flatten(order='F'))
-plt.savefig("Q_flattened"+str(L)+"_"+str(i)+".png")
+plt.savefig(case_name+"Q_flattened"+str(L)+"_"+str(i)+".png")
 
 plt.figure()
-plt.plot(Diff.flatten(order='F')[:10*31])
-plt.savefig("Diff_flattened"+str(L)+"_"+str(i)+".png")
+plt.plot(Diff.flatten(order='F')[:num_inj_tested*31])
+plt.savefig(case_name+"Diff_flattened"+str(L)+"_"+str(i)+".png")
 
 plt.figure()
-Uel_ref = io.loadmat("data1.mat")["Uel"]
-#Uel =  io.loadmat("ref.mat")["Uelref"] 
-plt.plot(-Uel_ref[:10*31])
-plt.savefig("data_flattened"+str(L)+"_"+str(i)+".png")
-
-
+plt.plot(-Uel_ref[:num_inj_tested*31])
+plt.savefig(case_name+"data_flattened"+str(L)+"_"+str(i)+".png")
 
 plt.figure()
-Uel_ref = io.loadmat("data1.mat")["Uel"]
-#Uel_ref =  io.loadmat("ref.mat")["Uelref"] 
-plt.plot(-Uel_ref[:10*31].flatten()- Diff.flatten(order='F')[:10*31].flatten())
-plt.savefig("data_model_diff"+str(L)+"_"+str(i)+".png")
+plt.plot(-Uel_ref[:num_inj_tested*31].flatten()- Diff.flatten(order='F')[:num_inj_tested*31])
+plt.savefig(case_name+"data_model_diff"+str(L)+"_"+str(i)+".png")
+# %% Error and model data 
+plt.figure()
+plt.plot(-Uel_ref[:num_inj_tested*31].flatten()- Diff.flatten(order='F')[:num_inj_tested*31], label= 'Error')
+plt.plot(Diff.flatten(order='F')[:num_inj_tested*31], label= 'Model output')
+plt.legend()
+plt.savefig(case_name+"data_diff_and_model.png"+str(L)+"_"+str(i)+".png")
+
+
+
 # %%
