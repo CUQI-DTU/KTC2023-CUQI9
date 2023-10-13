@@ -1,4 +1,3 @@
-# - - coding : utf-8 - -
 #%%
 """
 Note by Amal Alghamdi: This code is copied from the project report: Depth 
@@ -18,7 +17,7 @@ from utils import *
 import scipy.io as io
 from scipy.interpolate import RegularGridInterpolator
 
-case_name = 'case_ref' #'case1' , case3', 'case4', 'case_ref'
+case_name = 'case2' #'case1' , case3', 'case4', 'case_ref'
 KTC23_dir = './KTC23_data/'
 
 L = 32
@@ -77,15 +76,15 @@ else:
 
 #%%
 # Define conductivity
-class inclusion( Expression ):
-    def __init__(self, phantom, **kwargs ):
+class inclusion( UserExpression ):
+    def __init__(self, phantom , **kwargs):
+        super().__init__(**kwargs)
         x_grid = np.linspace(-1, 1, 256)
         y_grid = np.linspace(-1, 1, 256)
-        self.interpolater = RegularGridInterpolator((x_grid, y_grid), phantom, method="nearest") 
+        self._interpolater = RegularGridInterpolator((x_grid, y_grid), phantom, method="nearest") 
 
     def eval( self , values , x ) :
-        values[ 0 ] = self.interpolater([ x [ 0 ] , x [ 1 ] ])
-
+        values[ 0 ] = self._interpolater([ x [ 0 ] , x [ 1 ] ])
 
 phantom_float = np.zeros(phantom.shape)
 phantom_float[phantom == 0] = background_conductivity
@@ -113,7 +112,7 @@ Diff= np.zeros((L-1,num_inj))
 q_list = []
 
 for i in range(num_inj)[:num_inj_tested]:
-    print "injection pattern", i
+    print("injection pattern"+str(i))
     Q_i , q = solver(Imatr[:,i], B, V, dS, L)
     q_list.append(q)
 
