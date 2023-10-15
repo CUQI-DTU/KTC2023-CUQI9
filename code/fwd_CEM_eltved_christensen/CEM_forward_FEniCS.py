@@ -102,7 +102,7 @@ im = plt.imshow(phantom_float)
 plt.colorbar(im)  # norm= 'log'
 plt.savefig(case_name+"_phantom.png")
 
-my_inclusion = inclusion(phantom_float, degree=1)
+my_inclusion = inclusion(phantom_float, degree=0)
 # %%
 
 # Define H1 room
