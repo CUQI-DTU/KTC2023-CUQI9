@@ -62,7 +62,7 @@ class  EITFenics:
             e1 .mark(self.subdomains, i)  # mark subdomains
             xdmf = XDMFFile("subdomains.xdmf")
             xdmf.write(self.subdomains)
-    def create_inclusion(self, phantom):
+    def _create_inclusion(self, phantom):
         high_conductivity = 1e1
         low_conductivity = 1e-2
         background_conductivity = 0.8
@@ -78,7 +78,8 @@ class  EITFenics:
         plt.savefig("phantom.png")
 
         self.inclusion = Inclusion(phantom_float, degree=0)
-    def solve_forward(self, injection_patterns, num_inj_tested, z=1e-6):
+    def solve_forward(self, phantom, injection_patterns, num_inj_tested, z=1e-6):
+        self._create_inclusion(phantom)
         L = self.L
         V, dS = build_spaces(self.mesh, L, self.subdomains)
 

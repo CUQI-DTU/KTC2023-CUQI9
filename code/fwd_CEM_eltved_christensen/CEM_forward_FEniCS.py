@@ -53,9 +53,8 @@ else:
 L = 32
 F = 50
 myeit = EITFenics(L, F)
-myeit.create_inclusion(phantom)
 num_inj_tested = 76
-Uel_sim, Q, q_list = myeit.solve_forward(Imatr, num_inj_tested, 1e-6)
+Uel_sim, Q, q_list = myeit.solve_forward(phantom, Imatr, num_inj_tested, 1e-6)
 
 # # %% Plot potential solution for each injection pattern
 # H1 = FunctionSpace(myeit.mesh, 'CG', 1)
