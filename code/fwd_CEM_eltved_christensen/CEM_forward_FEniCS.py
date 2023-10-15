@@ -35,7 +35,7 @@ mesh = generate_mesh(Circle(Point(0, 0), R, n), F)  # generate mesh
 N = mesh.num_entities(2)
 subdomains = build_subdomains(L, mesh)
 
-xdmf = XDMFFile(case_name+"file_sub.xdmf")
+xdmf = XDMFFile(case_name+"_subdomains.xdmf")
 xdmf.write(subdomains)
 V, dS = build_spaces(mesh, L, subdomains)
 
@@ -74,6 +74,8 @@ elif case_name == 'case_ref':
 else:
     raise Exception("unknown case")
 
+Uel_ref = Uel_ref.flatten()
+
 # %%
 # Define conductivity
 
@@ -98,7 +100,7 @@ phantom_float[phantom == 2] = high_conductivity
 plt.figure()
 im = plt.imshow(phantom_float)
 plt.colorbar(im)  # norm= 'log'
-plt.savefig(case_name+"_ph_mod.png")
+plt.savefig(case_name+"_phantom.png")
 
 my_inclusion = inclusion(phantom_float, degree=1)
 # %%
@@ -123,37 +125,51 @@ for i in range(num_inj)[:num_inj_tested]:
     Q[:, i] = Q_i
     Diff[:, i] = np.diff(Q_i)
 
+Uel_sim = -Diff.flatten(order='F')
+
+print("simulation completed!")
+
 # %% Plot potential solution for each injection pattern
+h_func = Function(H1)
 for i, q in enumerate(q_list):
     plt.figure()
-    h_func = Function(H1)
     h_func.vector().set_local(q.vector().get_local()[L:-1])
-    h_func.vector().get_local()
+    # h_func.vector().get_local()
     im = plot(h_func)
     plt.colorbar(im)
-    plt.savefig(case_name+"new_q2_"+str(L)+"_"+str(i)+".png")
+    plt.savefig(case_name+"_q_L_"+str(L)+"_inj_"+str(i)+".png")
 
 # %%
 plt.figure()
-plt.plot(Q.flatten(order='F'))
-plt.savefig(case_name+"Q_flattened"+str(L)+"_"+str(i)+".png")
-
-plt.figure()
-plt.plot(Diff.flatten(order='F')[:num_inj_tested*31])
-plt.savefig(case_name+"Diff_flattened"+str(L)+"_"+str(i)+".png")
-
-plt.figure()
-plt.plot(-Uel_ref[:num_inj_tested*31])
-plt.savefig(case_name+"data_flattened"+str(L)+"_"+str(i)+".png")
-
-plt.figure()
-plt.plot(-Uel_ref[:num_inj_tested*31].flatten() -
-         Diff.flatten(order='F')[:num_inj_tested*31])
-plt.savefig(case_name+"data_model_diff"+str(L)+"_"+str(i)+".png")
-# %% Error and model data
-plt.figure()
-plt.plot(-Uel_ref[:num_inj_tested*31].flatten() -
-         Diff.flatten(order='F')[:num_inj_tested*31], label='Error')
-plt.plot(Diff.flatten(order='F')[:num_inj_tested*31], label='Model output')
+plt.plot(Q.flatten(order='F'), label="Q")
 plt.legend()
-plt.savefig(case_name+"data_diff_and_model.png"+str(L)+"_"+str(i)+".png")
+plt.savefig(case_name+"_Q_L_"+str(L)+".png")
+
+plt.figure()
+plt.plot(Uel_sim[:num_inj_tested*31], label="Uel_sim")
+plt.legend()
+img_title = case_name+"_Uel_sim_L_"+str(L)
+plt.savefig(img_title+".png")
+
+plt.figure()
+plt.plot(Uel_ref[:num_inj_tested*31], label="Uel_ref")
+plt.legend()
+img_title = case_name+"_Uel_ref_L_"+str(L)
+plt.savefig(img_title+".png")
+
+plt.figure()
+plt.plot(Uel_ref[:num_inj_tested*31] -
+         Uel_sim[:num_inj_tested*31], label="Uel_ref - Uel_sim")
+plt.legend()
+img_title = case_name+"_error_L_"+str(L)
+plt.savefig(img_title+".png")
+
+plt.figure()
+plt.plot(Uel_sim[:num_inj_tested*31], label='U_sim')
+plt.plot(Uel_ref[:num_inj_tested*31] -
+         Uel_sim[:num_inj_tested*31], label='Uel_ref - Uel_sim')
+plt.legend()
+img_title = case_name+"_sim_and_error_L_"+str(L)
+plt.savefig(img_title+".png")
+
+# %%
