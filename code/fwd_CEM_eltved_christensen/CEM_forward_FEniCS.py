@@ -15,7 +15,6 @@ from dolfin import *
 from matplotlib import pyplot as plt
 from utils import *
 import scipy.io as io
-from scipy.interpolate import RegularGridInterpolator
 
 case_name = 'case2'  # 'case1' , case3', 'case4', 'case_ref'
 KTC23_dir = './KTC23_data/'
@@ -78,20 +77,6 @@ Uel_ref = Uel_ref.flatten()
 
 # %%
 # Define conductivity
-
-
-class inclusion(UserExpression):
-    def __init__(self, phantom, **kwargs):
-        super().__init__(**kwargs)
-        x_grid = np.linspace(-1, 1, 256)
-        y_grid = np.linspace(-1, 1, 256)
-        self._interpolater = RegularGridInterpolator(
-            (x_grid, y_grid), phantom, method="nearest")
-
-    def eval(self, values, x):
-        values[0] = self._interpolater([x[0], x[1]])
-
-
 phantom_float = np.zeros(phantom.shape)
 phantom_float[phantom == 0] = background_conductivity
 phantom_float[np.isclose(phantom, 1, rtol=0.01)] = low_conductivity

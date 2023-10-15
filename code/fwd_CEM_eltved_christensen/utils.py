@@ -6,8 +6,19 @@ modifications are made.
 """
 
 import numpy as np
+from scipy.interpolate import RegularGridInterpolator
 from dolfin import *
 
+class inclusion(UserExpression):
+    def __init__(self, phantom, **kwargs):
+        super().__init__(**kwargs)
+        x_grid = np.linspace(-1, 1, 256)
+        y_grid = np.linspace(-1, 1, 256)
+        self._interpolater = RegularGridInterpolator(
+            (x_grid, y_grid), phantom, method="nearest")
+
+    def eval(self, values, x):
+        values[0] = self._interpolater([x[0], x[1]])
 
 def build_subdomains(L, mesh):
     def twopiarctan(x):
