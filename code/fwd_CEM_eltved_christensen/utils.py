@@ -7,9 +7,112 @@ modifications are made.
 
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator
+from matplotlib import pyplot as plt
 from dolfin import *
+from mshr import *
 
-class inclusion(UserExpression):
+class  EITFenics:
+    def __init__(self, L=32, F=50):
+        self.L = L
+        self.F = F
+        self._create_mesh()
+        self._build_subdomains()
+    def _create_mesh(self):
+        R = 1  # radius of circle
+        n = 300 # number of polygons to approximate circle
+        self.mesh = generate_mesh(Circle(Point(0, 0), R, n), self.F)  # generate mesh
+        print("Mesh created with %d elements" % self.mesh.num_entities(2))
+    def _build_subdomains(self):
+        L = self.L
+        e_l = np.pi / L
+        d_e = 2*np.pi / L - e_l
+
+        # Define subdomain mesh
+        self.subdomains = MeshFunction("size_t", self.mesh, self.mesh.topology().dim()-1, 0)
+
+        # Define subdomains
+        def twopiarctan(x):
+            val = np.arctan2(x[1], x[0])
+            if val < 0:
+                val = val+2*np.pi
+            return val
+
+        class e(SubDomain):
+            def inside(self, x, on_boundary):
+                theta = twopiarctan(x)
+                # print "theta inside", theta
+                if theta1 > theta2:
+                    return on_boundary and ((theta >= 0
+                                            and theta <= theta2) or (theta >= theta1
+                                                                    and theta <= 2*np.pi))
+                return on_boundary and theta >= theta1 \
+                    and theta <= theta2
+                # return  theta>=theta1 and theta<=theta2
+
+        for i in range(1, L+1):
+            shift_theta = np.pi/2 - np.pi/(2*L)
+            # print "shift_theta", shift_theta
+            # print L
+            theta1 = np.mod((i - 1) * (e_l+d_e) + shift_theta, 2*np.pi)
+            theta2 = np.mod(theta1+e_l, 2*np.pi)
+            # print i
+            # print theta1
+            # print theta2
+            e1 = e()  # create instance
+            e1 .mark(self.subdomains, i)  # mark subdomains
+            xdmf = XDMFFile("subdomains.xdmf")
+            xdmf.write(self.subdomains)
+    def create_inclusion(self, phantom):
+        high_conductivity = 1e1
+        low_conductivity = 1e-2
+        background_conductivity = 0.8
+        # Define conductivity
+        phantom_float = np.zeros(phantom.shape)
+        phantom_float[phantom == 0] = background_conductivity
+        phantom_float[np.isclose(phantom, 1, rtol=0.01)] = low_conductivity
+        phantom_float[phantom == 2] = high_conductivity
+
+        plt.figure()
+        im = plt.imshow(phantom_float)
+        plt.colorbar(im)  # norm= 'log'
+        plt.savefig("phantom.png")
+
+        self.inclusion = Inclusion(phantom_float, degree=0)
+    def solve_forward(self, injection_patterns, num_inj_tested, z=1e-6):
+        L = self.L
+        V, dS = build_spaces(self.mesh, L, self.subdomains)
+
+        # Define vector of contact impedance
+        # z = 10e-6  # 0.1 # Impedence
+        Z = []
+        for i in range(self.L):
+            Z.append(z)
+
+        # Define H1 room
+        H1 = FunctionSpace(self.mesh, 'CG', 1)
+
+        # Loop over current patterns
+        num_inj = 76  # Number of injection pattern
+        # num_inj_tested = 76
+
+        B = build_b(self.inclusion, Z, V, dS, L)
+        Q = np.zeros((L, num_inj))
+        Diff = np.zeros((L-1, num_inj))
+        q_list = []
+
+        for i in range(num_inj)[:num_inj_tested]:
+            print("injection pattern"+str(i))
+            Q_i, q = solver(injection_patterns[:, i], B, V, dS, L)
+            q_list.append(q)
+
+            Q[:, i] = Q_i
+            Diff[:, i] = np.diff(Q_i)
+
+        Uel_sim = -Diff.flatten(order='F')
+        return Uel_sim, Q, q_list
+
+
+class Inclusion(UserExpression):
     def __init__(self, phantom, **kwargs):
         super().__init__(**kwargs)
         x_grid = np.linspace(-1, 1, 256)
@@ -59,7 +162,6 @@ def build_subdomains(L, mesh):
         e1 .mark(subdomains, i)  # mark subdomain
 
     return subdomains
-
 
 def build_spaces(mesh, L, subdomains):
     R = FunctionSpace(mesh, "R", 0)
