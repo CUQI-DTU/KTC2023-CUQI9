@@ -143,25 +143,30 @@ for i, q in enumerate(q_list):
 plt.figure()
 plt.plot(Q.flatten(order='F'), label="Q")
 plt.legend()
-plt.savefig(case_name+"_Q_L_"+str(L)+".png")
+img_title = case_name+"_Q_L_"+str(L) +"_F_"+str(F)
+plt.title(img_title)
+plt.savefig(img_title+".png")
 
 plt.figure()
 plt.plot(Uel_sim[:num_inj_tested*31], label="Uel_sim")
 plt.legend()
-img_title = case_name+"_Uel_sim_L_"+str(L)
+img_title = case_name+"_Uel_sim_L_"+str(L) +"_F_"+str(F)
+plt.title(img_title)
 plt.savefig(img_title+".png")
 
 plt.figure()
 plt.plot(Uel_ref[:num_inj_tested*31], label="Uel_ref")
 plt.legend()
-img_title = case_name+"_Uel_ref_L_"+str(L)
+img_title = case_name+"_Uel_ref_L_"+str(L) +"_F_"+str(F)
+plt.title(img_title)
 plt.savefig(img_title+".png")
 
 plt.figure()
 plt.plot(Uel_ref[:num_inj_tested*31] -
          Uel_sim[:num_inj_tested*31], label="Uel_ref - Uel_sim")
 plt.legend()
-img_title = case_name+"_error_L_"+str(L)
+img_title = case_name+"_error_L_"+str(L) +"_F_"+str(F)
+plt.title(img_title)
 plt.savefig(img_title+".png")
 
 plt.figure()
@@ -169,7 +174,8 @@ plt.plot(Uel_sim[:num_inj_tested*31], label='U_sim')
 plt.plot(Uel_ref[:num_inj_tested*31] -
          Uel_sim[:num_inj_tested*31], label='Uel_ref - Uel_sim')
 plt.legend()
-img_title = case_name+"_sim_and_error_L_"+str(L)
+img_title = case_name+"_sim_and_error_L_"+str(L) +"_F_"+str(F)
+plt.title(img_title)
 plt.savefig(img_title+".png")
 
 # %%
