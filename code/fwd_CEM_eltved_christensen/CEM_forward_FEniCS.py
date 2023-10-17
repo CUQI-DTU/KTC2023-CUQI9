@@ -54,18 +54,80 @@ L = 32
 F = 50
 myeit = EITFenics(L, F)
 num_inj_tested = 76
-Uel_sim, Q, q_list = myeit.solve_forward(phantom, Imatr, num_inj_tested, 1e-6)
+z = 1e-6 
+Uel_sim, Q, q_list = myeit.solve_forward(phantom, Imatr, num_inj_tested, z)
 
-# # %% Plot potential solution for each injection pattern
-# H1 = FunctionSpace(myeit.mesh, 'CG', 1)
-# h_func = Function(H1)
-# for i, q in enumerate(q_list):
-#     plt.figure()
-#     h_func.vector().set_local(q.vector().get_local()[L:-1])
-#     # h_func.vector().get_local()
-#     im = plot(h_func)
-#     plt.colorbar(im)
+#%%
+H = FunctionSpace(myeit.mesh, 'CG', 1)
+inc_pert_1 = interpolate(myeit.inclusion, H)
+sigma_perturb = Function(H)
+sigma_perturb.vector().set_local(inc_pert_1.vector().get_local() - 0.8)
+
+
+
+#project(myeit.inclusion - 0.8, myeit.V[L])
+#%%
+print("Solving P")
+sigma_background = Function(H)
+sigma_background.vector().set_local(inc_pert_1.vector().get_local()*0 + 0.8)
+
+w_list = myeit.solve_P(q_list, sigma_perturb, sigma_background, z)
+
+#%%
+# Solve forward for background phantom A
+phantomA = np.copy(phantom)
+phantomA[:] = 0.8
+Uel_sim_A, Q_A, q_list_A = myeit.solve_forward(phantomA, Imatr, num_inj_tested, z)
+
+#%%
+# Solve forward for background phantom AC
+phantomAC = np.copy(phantom)
+Uel_sim_AC, Q_AC, q_list_AC = myeit.solve_forward(phantomAC, Imatr, num_inj_tested, z)
+
+#%% 
+# Compute the difference between the rhs and lhs in the paper, right before eq 5.1
+lhs_diff = q_list_A[0].vector().get_local()[L:-1] - q_list_AC[0].vector().get_local()[L:-1]
+
+rhs_ = w_list[0].vector().get_local()[L:-1]
+
+assert np.allclose(lhs_diff, rhs_)
+
+
+# %% Plot potential solution for each injection pattern
+H1 = FunctionSpace(myeit.mesh, 'CG', 1)
+h_func = Function(H1)
+for i, w in enumerate(w_list):
+     plt.figure()
+     h_func.vector().set_local(w.vector().get_local()[L:-1])
+     # h_func.vector().get_local()
+     im = plot(h_func)
+     plt.colorbar(im)
 #     plt.savefig(case_name+"_q_L_"+str(L)+"_inj_"+str(i)+".png")
+
+#%%
+rhs_diff_func = Function(H)
+rhs_diff_func.vector().set_local(rhs_diff)
+im = plot(rhs_diff_func)
+plt.colorbar(im)
+
+plt.figure()
+lhs_diff_func = Function(H)
+lhs_diff_func.vector().set_local(-lhs_diff)
+im = plot(lhs_diff_func)
+plt.colorbar(im)
+
+plt.figure()
+mismatch_func = Function(H)
+mismatch_func.vector().set_local(rhs_diff-(-lhs_diff))
+im = plot(mismatch_func)
+plt.colorbar(im)
+
+#%%
+
+print(norm(lhs_diff_func))
+print(norm(rhs_diff_func))
+print(norm(mismatch_func))
+
 
 # %% postprocess
 plt.figure()
