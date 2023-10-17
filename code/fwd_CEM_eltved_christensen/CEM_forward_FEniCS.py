@@ -106,7 +106,7 @@ for i, w in enumerate(w_list):
 
 #%%
 rhs_diff_func = Function(H)
-rhs_diff_func.vector().set_local(rhs_diff)
+rhs_diff_func.vector().set_local(rhs_)
 im = plot(rhs_diff_func)
 plt.colorbar(im)
 
@@ -118,7 +118,7 @@ plt.colorbar(im)
 
 plt.figure()
 mismatch_func = Function(H)
-mismatch_func.vector().set_local(rhs_diff-(-lhs_diff))
+mismatch_func.vector().set_local(rhs_-(-lhs_diff))
 im = plot(mismatch_func)
 plt.colorbar(im)
 
