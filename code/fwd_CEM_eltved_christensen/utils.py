@@ -17,6 +17,8 @@ class  EITFenics:
         self.F = F
         self._create_mesh()
         self._build_subdomains()
+        self.V, self.dS = build_spaces(self.mesh, L, self.subdomains)
+
     def _create_mesh(self):
         R = 1  # radius of circle
         n = 300 # number of polygons to approximate circle
@@ -81,7 +83,6 @@ class  EITFenics:
     def solve_forward(self, phantom, injection_patterns, num_inj_tested, z=1e-6):
         self._create_inclusion(phantom)
         L = self.L
-        V, dS = build_spaces(self.mesh, L, self.subdomains)
 
         # Define vector of contact impedance
         # z = 10e-6  # 0.1 # Impedence
@@ -96,14 +97,14 @@ class  EITFenics:
         num_inj = 76  # Number of injection pattern
         # num_inj_tested = 76
 
-        B = build_b(self.inclusion, Z, V, dS, L)
+        B = build_b(self.inclusion, Z, self.V, self.dS, L)
         Q = np.zeros((L, num_inj))
         Diff = np.zeros((L-1, num_inj))
         q_list = []
 
         for i in range(num_inj)[:num_inj_tested]:
             print("injection pattern"+str(i))
-            Q_i, q = solver(injection_patterns[:, i], B, V, dS, L)
+            Q_i, q = solver(injection_patterns[:, i], B, self.V, self.dS, L)
             q_list.append(q)
 
             Q[:, i] = Q_i
@@ -111,6 +112,36 @@ class  EITFenics:
 
         Uel_sim = -Diff.flatten(order='F')
         return Uel_sim, Q, q_list
+
+    def solve_P(self, y_list, sigma_perturb, background_sigma, z=1e-6):
+        L = self.L
+
+        # Define vector of contact impedance
+        # z = 10e-6  # 0.1 # Impedence
+        Z = []
+        for i in range(self.L):
+            Z.append(z)
+
+        # Define H1 room
+        H1 = FunctionSpace(self.mesh, 'CG', 1)
+
+        B = build_b(background_sigma, Z, self.V, self.dS, L)
+
+        v = TestFunction(self.V)
+
+        w_list = []
+        for y in y_list:
+
+            f = -sigma_perturb * inner(nabla_grad(y[L]), nabla_grad(v[L])) * dx 
+
+            rhs = assemble(f)
+
+            # Compute solution
+            w = Function(self.V)
+            solve(B, w.vector(), rhs)
+            w_list.append(w)
+
+        return w_list
 
 
 class Inclusion(UserExpression):
@@ -199,6 +230,7 @@ def build_b(sigma, Z, V, dS, L):
 
     for i in range(L):
         B += 1/Z[i] * (u[L]-u[i])*(v[L]-v[i]) * dS(i + 1)
+        #TODO: check if this is correct for P operator
         B += (v[L+1]*u[i] / assemble(1*dS(i+1))) * dS(i+1)
         B += (u[L+1]*v[i] / assemble(1*dS(i+1))) * dS(i+1)
 
