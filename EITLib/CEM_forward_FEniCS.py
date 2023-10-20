@@ -16,7 +16,7 @@ import scipy.io as io
 
 # %% set up data
 case_name = 'case1'  # 'case1' , case3', 'case4', 'case_ref'
-KTC23_dir = './KTC23_data/'
+KTC23_dir = './fwd_CEM_eltved_christensen/KTC23_data/'
 
 Imatr = io.loadmat(KTC23_dir+"ref.mat")["Injref"]
 
@@ -71,7 +71,7 @@ print("Solving P")
 sigma_background = Function(H)
 sigma_background.vector().set_local(inc_pert_1.vector().get_local()*0 + 0.8)
 
-w_list = myeit.solve_P(q_list, sigma_perturb, sigma_background, z)
+w_list = myeit.solve_P(q_list, sigma_perturb)
 
 #%%
 # Solve forward for background phantom A
