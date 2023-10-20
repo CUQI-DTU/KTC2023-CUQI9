@@ -1,9 +1,8 @@
 #%%
 import abc
-import meshio
-import sys
-sys.path.append("..")
-from  EITLib import EITFenics
+# import sys
+# sys.path.append("..")
+from ktc.utils import EITFenics
 
 #%%
 import numpy as np

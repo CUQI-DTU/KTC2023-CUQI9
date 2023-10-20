@@ -1,9 +1,8 @@
 import numpy as np
 import pygmsh
 
-from model import ForwardModel
+from ktc.model import ForwardModel
 from numpy.typing import ArrayLike
-
 
 class SeriesReversion:
     def __init__(self, model: ForwardModel, **kwargs):
