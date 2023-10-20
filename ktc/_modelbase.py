@@ -12,7 +12,8 @@ __all__ = ["ABCForwardModel"]
 
 
 class ABCForwardModel(abc.ABC):
-    """An abstract base class for immutable forward model classes.
+    """
+    An abstract base class for immutable forward model classes.
 
     ABCPolyBase provides the standard Python numerical methods
     '+', '-', '*', '//', '%', 'divmod', '**', and '()' along with the
@@ -65,3 +66,23 @@ class ABCForwardModel(abc.ABC):
 
     def __init__(self):
         pass
+
+    @abc.abstractmethod
+    def solve(self, I):
+        """
+        Evalute the Neumann to Dirichlet map
+
+        Attributes
+        ----------
+        """
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def jacobian(self):
+        """Return jacobian on mesh"""
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def poisson(self, pertubation, u):
+        """Return solution to generalized Poisson problem"""
+        raise NotImplementedError
