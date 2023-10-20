@@ -1,9 +1,14 @@
+#%%
 import abc
 import meshio
-import gmsh
+import sys
+sys.path.append("..")
+from  EITLib import EITFenics
 
+#%%
 import numpy as np
 from numpy.typing import ArrayLike
+
 
 class ForwardModel(metaclass=abc.ABCMeta):
     @classmethod
@@ -35,34 +40,28 @@ class ForwardModel(metaclass=abc.ABCMeta):
 
 
 class FenicsForwardModel(ForwardModel):
-    def __init__(self, number_of_electrodes) -> None:
-        self.number_of_electrodes = 32
-        
+    def __init__(self) -> None:
+        self.eit_fenics = EITFenics()
         super().__init__()
+
 
     def solve(self, current_injection: ArrayLike) -> ArrayLike:
         """Compute Neumann to Dirichlet map"""
-        pass
+        return self.eit_fenics.solve_forward(current_injection)
 
-    def jacobian(self, mesh, current_injections) -> ArrayLike:
+
+    def jacobian(self, current_injection: ArrayLike) -> ArrayLike:
         """Return jacobian"""
-        current_injections = np.identity(self.number_of_electrodes)
-        N = len(mesh.points)
-        J = np.zeros(self.number_of_injections*self.number_of_electrodes, N)
-        
-        for n,face in enumerate(mesh.faces):
-            #TODO: Compute conductivity map with specific 
-            face_pertubation = 0
-            J[:,n] = self.poisson(face_pertubation, current_injections)
-
-        
         pass
 
     def poisson(
-        self, pertubation: ArrayLike, current_injection: ArrayLike
+        self,
+        y_list, 
+        pertubation: ArrayLike
     ) -> ArrayLike:
         """Return solution to generalized Poisson problem"""
-        pass
+        return self.eit_fenics.solve_P(y_list, pertubation)
+
 
 
 class CompleteElectrodeModel:
