@@ -11,7 +11,7 @@ from matplotlib import pyplot as plt
 from dolfin import *
 from mshr import *
 
-class EITFenics:
+class  EITFenics:
     def __init__(self, L=32, F=50):
         self.L = L
         self.F = F
