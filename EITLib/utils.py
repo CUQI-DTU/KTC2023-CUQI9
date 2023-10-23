@@ -11,27 +11,29 @@ from matplotlib import pyplot as plt
 from dolfin import *
 from mshr import *
 
+def create_disk_mesh(radius, n, F):
+    center = Point(0, 0)
+    domain = Circle(center, radius, n)
+    mesh = generate_mesh(domain, F)
+    return mesh
+
 class  EITFenics:
-    def __init__(self, L=32, F=50):
+    def __init__(self, L=32, n=300, F=50):
         self.L = L
         self.F = F
+        self.n = n
         impedance_scalar = 1e-6
         self.impedance = []
         for i in range(self.L):
             self.impedance.append(impedance_scalar)
 
         self.background_conductivity = 0.8
-        self._create_mesh()
+        self.mesh = create_disk_mesh(1, self.n, self.F)
+        
         self._build_subdomains()
         self.V, self.dS = self.build_spaces(self.mesh, L, self.subdomains)
         self.B_background = self.build_b(self.background_conductivity, self.V, self.dS, L)
 
-
-    def _create_mesh(self):
-        R = 1  # radius of circle
-        n = 300 # number of polygons to approximate circle
-        self.mesh = generate_mesh(Circle(Point(0, 0), R, n), self.F)  # generate mesh
-        print("Mesh created with %d elements" % self.mesh.num_entities(2))
     def _build_subdomains(self):
         L = self.L
         e_l = np.pi / L
