@@ -1,80 +1,264 @@
-#%%
-import abc
-import meshio
-import sys
-sys.path.append("..")
-from  EITLib import EITFenics
+"""
+Note by Amal Alghamdi: This code is copied from the project report: Depth
+Dependency in Electrical Impedance Tomography with the Complete
+Electrode Model by Anders Eltved and Nikolaj Vestbjerg Christensen (Appendix D.5). Some
+modifications are made.
+"""
 
-#%%
 import numpy as np
-from numpy.typing import ArrayLike
+from scipy.interpolate import RegularGridInterpolator
+from matplotlib import pyplot as plt
+from dolfin import *
+from mshr import *
+
+def create_disk_mesh(radius, n, F):
+    center = Point(0, 0)
+    domain = Circle(center, radius, n)
+    mesh = generate_mesh(domain, F)
+    return mesh
+
+class FenicsForwardModel:
+    def __init__(self, L=32, n=300, F=50):
+        self.L = L
+        self.F = F
+        self.n = n
+        impedance_scalar = 1e-6
+
+        self.impedance = []
+        for i in range(self.L):
+            self.impedance.append(impedance_scalar)
+
+        self.background_conductivity = 0.8
+        self.mesh = create_disk_mesh(1, self.n, self.F)
+
+        self._build_subdomains()
+        self.V, self.dS = self.build_spaces(self.mesh, L, self.subdomains)
+        self.B_background = self.build_b(self.background_conductivity, self.V, self.dS, L)
+
+    def _build_subdomains(self):
+        L = self.L
+        e_l = np.pi / L
+        d_e = 2*np.pi / L - e_l
+
+        # Define subdomain mesh
+        self.subdomains = MeshFunction("size_t", self.mesh, self.mesh.topology().dim()-1, 0)
+
+        # Define subdomains
+        def twopiarctan(x):
+            val = np.arctan2(x[1], x[0])
+            if val < 0:
+                val = val+2*np.pi
+            return val
+
+        class e(SubDomain):
+            def inside(self, x, on_boundary):
+                theta = twopiarctan(x)
+                # print "theta inside", theta
+                if theta1 > theta2:
+                    return on_boundary and ((theta >= 0
+                                            and theta <= theta2) or (theta >= theta1
+                                                                    and theta <= 2*np.pi))
+                return on_boundary and theta >= theta1 \
+                    and theta <= theta2
+                # return  theta>=theta1 and theta<=theta2
+
+        for i in range(1, L+1):
+            shift_theta = np.pi/2 - np.pi/(2*L)
+            # print "shift_theta", shift_theta
+            # print L
+            theta1 = np.mod((i - 1) * (e_l+d_e) + shift_theta, 2*np.pi)
+            theta2 = np.mod(theta1+e_l, 2*np.pi)
+            # print i
+            # print theta1
+            # print theta2
+            e1 = e()  # create instance
+            e1 .mark(self.subdomains, i)  # mark subdomains
+            xdmf = XDMFFile("subdomains.xdmf")
+            xdmf.write(self.subdomains)
+    def _create_inclusion(self, phantom):
+        high_conductivity = 1e1
+        low_conductivity = 1e-2
+        background_conductivity = self.background_conductivity
+        # Define conductivity
+        phantom_float = np.zeros(phantom.shape)
+        phantom_float[phantom == 0] = background_conductivity
+        phantom_float[np.isclose(phantom, 1, rtol=0.01)] = low_conductivity
+        phantom_float[phantom == 2] = high_conductivity
+
+        plt.figure()
+        im = plt.imshow(phantom_float)
+        plt.colorbar(im)  # norm= 'log'
+        plt.savefig("phantom.png")
+
+        self.inclusion = Inclusion(phantom_float, degree=0)
+
+    def solve_forward(self, injection_patterns, phantom=None, num_inj_tested=None):
+        self._create_inclusion(phantom)
+        L = self.L
+
+        # Define vector of contact impedance
+        # z = 10e-6  # 0.1 # Impedence
 
 
-class ForwardModel(metaclass=abc.ABCMeta):
-    @classmethod
-    def __subclasshook__(cls, subclass):
-        return (
-            hasattr(subclass, "jacobian")
-            and callable(subclass.jacobian)
-            and hasattr(subclass, "solve")
-            and callable(subclass.solve)
-            and hasattr(subclass, "jacobian")
-            and callable(subclass.jacobian)
-            or NotImplemented
-        )
+        # Define H1 room
+        H1 = FunctionSpace(self.mesh, 'CG', 1)
 
-    @abc.abstractmethod
-    def solve(self, current_injection: ArrayLike) -> (ArrayLike, ArrayLike):
-        """Compute Neumann to Dirichlet map"""
-        raise NotImplementedError
+        # Loop over current patterns
+        num_inj = 76  # Number of injection pattern
+        # num_inj_tested = 76
+        B = self.B_background if phantom is None else self.build_b(self.inclusion, self.V, self.dS, L)
 
-    @abc.abstractmethod
-    def jacobian(self, mesh) -> ArrayLike:
-        """Return jacobian on mesh"""
-        raise NotImplementedError
+        Q = np.zeros((L, num_inj))
+        Diff = np.zeros((L-1, num_inj))
+        q_list = []
 
-    @abc.abstractmethod
-    def poisson(self, pertubation: ArrayLike, u: ArrayLike) -> ArrayLike:
-        """Return solution to generalized Poisson problem"""
-        raise NotImplementedError
+        for i in range(num_inj)[:num_inj_tested]:
+            print("injection pattern"+str(i))
+            Q_i, q = self.solver(injection_patterns[:, i], B, self.V, self.dS, L)
+            q_list.append(q)
 
+            Q[:, i] = Q_i
+            Diff[:, i] = np.diff(Q_i)
 
-class FenicsForwardModel(ForwardModel):
-    def __init__(self) -> None:
-        self.eit_fenics = EITFenics()
-        super().__init__()
+        Uel_sim = -Diff.flatten(order='F')
+        return Uel_sim, Q, q_list
 
+    def solve_P(self, y_list, sigma_perturb):
+        L = self.L
 
-    def solve(self, current_injection: ArrayLike) -> ArrayLike:
-        """Compute Neumann to Dirichlet map"""
-        return self.eit_fenics.solve_forward(current_injection)
+        # Define H1 room
+        H1 = FunctionSpace(self.mesh, 'CG', 1)
+        B = self.B_background
+        v = TestFunction(self.V)
 
+        w_list = []
+        for y in y_list:
 
-    def jacobian(self, current_injection: ArrayLike) -> ArrayLike:
-        """Return jacobian"""
-        pass
+            f = -sigma_perturb * inner(nabla_grad(y[L]), nabla_grad(v[L])) * dx
 
-    def poisson(
-        self,
-        y_list, 
-        pertubation: ArrayLike
-    ) -> ArrayLike:
-        """Return solution to generalized Poisson problem"""
-        return self.eit_fenics.solve_P(y_list, pertubation)
+            rhs = assemble(f)
+
+            # Compute solution
+            w = Function(self.V)
+            solve(B, w.vector(), rhs)
+            w_list.append(w)
+
+        return w_list
 
 
 
-class CompleteElectrodeModel:
-    def __init__(self, injection, **kwargs):
-        self.injection = injection
-        self.sigmamin = kwargs.get("sigmamin", 1e-9)
-        self.sigmamax = kwargs.get("sigmamax", 1e9)
-        self.zmin = kwargs.get("zmin", 1e-6)
-        self.zmax = kwargs.get("zmax", 1e6)
 
-    def solve(self, sigma, z):
-        sigma = np.clip(sigma, self.sigmamin, self.sigmamax)
-        z = np.clip(z, self.zmin, self.zmax)
+    def build_subdomains(self, L, mesh):
+        def twopiarctan(x):
+            val = np.arctan2(x[1], x[0])
+            if val < 0:
+                val = val+2*np.pi
+            return val
 
-    def jacobian(self, sigma, z):
-        pass
+        e_l = np.pi / L
+        d_e = 2*np.pi / L - e_l
+
+        # Define subdomain mesh
+        subdomains = MeshFunction("size_t", mesh, mesh.topology().dim()-1, 0)
+
+       # Define subdomains
+        class e(SubDomain):
+            def inside(self, x, on_boundary):
+                theta = twopiarctan(x)
+                # print "theta inside", theta
+                if theta1 > theta2:
+                    return on_boundary and ((theta >= 0
+                                             and theta <= theta2) or (theta >= theta1
+                                                                      and theta <= 2*np.pi))
+                return on_boundary and theta >= theta1 \
+                    and theta <= theta2
+                # return  theta>=theta1 and theta<=theta2
+
+        for i in range(1, L+1):
+            shift_theta = np.pi/2 - np.pi/(2*L)
+            # print "shift_theta", shift_theta
+            # print L
+            theta1 = np.mod((i - 1) * (e_l+d_e) + shift_theta, 2*np.pi)
+            theta2 = np.mod(theta1+e_l, 2*np.pi)
+            # print i
+            # print theta1
+            # print theta2
+            e1 = e()  # create instance
+            e1 .mark(subdomains, i)  # mark subdomain
+
+        return subdomains
+
+    def build_spaces(self, mesh, L, subdomains):
+        R = FunctionSpace(mesh, "R", 0)
+        H1 = FunctionSpace(mesh, "CG", 1)
+
+        spacelist = None
+
+        for i in range(1, L+1):
+
+            if i == 1:
+                spacelist = R.ufl_element()
+            else:
+                spacelist *= R.ufl_element()
+
+        spacelist *= H1.ufl_element()
+        spacelist *= R.ufl_element()
+
+        # Create function space
+        V = FunctionSpace(mesh, spacelist)
+
+        # Define new measures associated with the boundaries
+        dS = Measure('ds', domain=mesh, subdomain_data=subdomains)
+
+        return V, dS
+
+
+    def build_b(self, sigma, V, dS, L):
+
+        # Define trial and test functions
+        u = TrialFunction(V)
+        v = TestFunction(V)
+
+        B = sigma * inner(nabla_grad(u[L]), nabla_grad(v[L])) * dx
+
+        for i in range(L):
+            B += 1/self.impedance[i] * (u[L]-u[i])*(v[L]-v[i]) * dS(i + 1)
+            #TODO: check if this is correct for P operator
+            B += (v[L+1]*u[i] / assemble(1*dS(i+1))) * dS(i+1)
+            B += (u[L+1]*v[i] / assemble(1*dS(i+1))) * dS(i+1)
+
+        return assemble(B)
+
+
+    def solver(self, I, B, V, dS, L):  # sigma ,L, I , Z ,mesh, subdomains )
+       # def 2 pi function
+
+        # Define trial and test functions
+        u = TrialFunction(V)
+        v = TestFunction(V)
+
+        f = 0*dS(1)
+
+        for i in range(L):
+            f += (I[i] * v[i] / assemble(1*dS(i+1))) * dS(i+1)
+
+        rhs = assemble(f)
+
+        # Compute solution
+        q = Function(V)
+        solve(B, q.vector(), rhs)
+
+        Q = q.vector().get_local()[:L]
+
+        return Q, q
+
+class Inclusion(UserExpression):
+    def __init__(self, phantom, **kwargs):
+        super().__init__(**kwargs)
+        x_grid = np.linspace(-1, 1, 256)
+        y_grid = np.linspace(-1, 1, 256)
+        self._interpolater = RegularGridInterpolator(
+            (x_grid, y_grid), phantom, method="nearest")
+
+    def eval(self, values, x):
+        values[0] = self._interpolater([x[0], x[1]])
