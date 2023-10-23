@@ -214,24 +214,24 @@ class FenicsForwardModel:
         return ds
 
 
-    def build_b(self, sigma, electrode_count):
+    def _bilinear_form(self, sigma, electrode_count):
 
         V = self._solution_space()
         ds = self._boundary_measure()
 
         # Define trial and test functions
-        u = TrialFunction(V)
-        v = TestFunction(V)
+        (u, p, *U) = TrialFunction(V)
+        (v, q, *V) = TestFunction(V)
 
-        B = sigma * inner(nabla_grad(u[electrode_count]), nabla_grad(v[electrode_count])) * dx
-
+        a = sigma * inner(nabla_grad(u[0]), nabla_grad(v[0])) * dx
         for i in range(electrode_count):
-            B += 1/self.impedance[i] * (u[electrode_count]-u[i])*(v[electrode_count]-v[i]) * ds(i + 1)
-            #TODO: check if this is correct for P operator
-            B += (v[electrode_count+1]*u[i] / assemble(1*ds(i+1))) * ds(i+1)
-            B += (u[electrode_count+1]*v[i] / assemble(1*ds(i+1))) * ds(i+1)
+            a += 1 / self.impedance[i] * (u - U[i]) * (v - V[i]) * ds(i + 1)
 
-        return assemble(B)
+            # Enforce mean free electrode potentials
+            area = assemble(1 * ds(i + 1))
+            a += (q * u[i] + p * v[i]) / area * ds(i + 1)
+
+        return assemble(a)
 
 
     def solver(self, I, B, V, ds, electrode_count):
