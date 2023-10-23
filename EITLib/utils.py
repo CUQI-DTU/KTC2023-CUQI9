@@ -10,6 +10,7 @@ from scipy.interpolate import RegularGridInterpolator
 from matplotlib import pyplot as plt
 from dolfin import *
 from mshr import *
+from scipy.sparse import diags
 
 def create_disk_mesh(radius, n, F):
     center = Point(0, 0)
@@ -18,7 +19,7 @@ def create_disk_mesh(radius, n, F):
     return mesh
 
 class  EITFenics:
-    def __init__(self, L=32, n=300, F=50):
+    def __init__(self, L=32, n=300, F=50, background_conductivity=0.8):
         self.L = L
         self.F = F
         self.n = n
@@ -27,12 +28,17 @@ class  EITFenics:
         for i in range(self.L):
             self.impedance.append(impedance_scalar)
 
-        self.background_conductivity = 0.8
+        self.background_conductivity = background_conductivity
         self.mesh = create_disk_mesh(1, self.n, self.F)
         
         self._build_subdomains()
         self.V, self.dS = self.build_spaces(self.mesh, L, self.subdomains)
+        self._build_D_sub()
         self.B_background = self.build_b(self.background_conductivity, self.V, self.dS, L)
+
+    def _build_D_sub(self):
+        L = self.L
+        self.D_sub = diags([-np.ones(L-1), np.ones(L)], [1, 0]).toarray()[:-1, :]
 
     def _build_subdomains(self):
         L = self.L
@@ -75,28 +81,17 @@ class  EITFenics:
             xdmf = XDMFFile("subdomains.xdmf")
             xdmf.write(self.subdomains)
     def _create_inclusion(self, phantom):
-        high_conductivity = 1e1
-        low_conductivity = 1e-2
-        background_conductivity = self.background_conductivity
-        # Define conductivity
-        phantom_float = np.zeros(phantom.shape)
-        phantom_float[phantom == 0] = background_conductivity
-        phantom_float[np.isclose(phantom, 1, rtol=0.01)] = low_conductivity
-        phantom_float[phantom == 2] = high_conductivity
 
         plt.figure()
-        im = plt.imshow(phantom_float)
+        im = plt.imshow(phantom)
         plt.colorbar(im)  # norm= 'log'
         plt.savefig("phantom.png")
 
-        self.inclusion = Inclusion(phantom_float, degree=0)
+        self.inclusion = Inclusion(phantom, degree=0)
+
     def solve_forward(self, injection_patterns, phantom=None, num_inj_tested=None):
         self._create_inclusion(phantom)
         L = self.L
-
-        # Define vector of contact impedance
-        # z = 10e-6  # 0.1 # Impedence
-
 
         # Define H1 room
         H1 = FunctionSpace(self.mesh, 'CG', 1)
@@ -120,6 +115,46 @@ class  EITFenics:
 
         Uel_sim = -Diff.flatten(order='F')
         return Uel_sim, Q, q_list
+    
+    def solve_adjoint(self, q_list, phantom, u_measure):
+        self._create_inclusion(phantom)
+        L = self.L
+
+        # Define H1 room
+        H1 = FunctionSpace(self.mesh, 'CG', 1)
+
+        B_transpose = self.build_b_adjoint(self.inclusion, self.V, self.dS, L)
+
+        v_list = []
+
+        for i, q in enumerate(q_list):
+            rhs_sub =-self.D_sub.T@(self.D_sub@q.vector().get_local()[:L] - u_measure[i*(L-1):(i+1)*(L-1)] )
+            rhs = Function(self.V).vector()
+
+            rhs.set_local(np.concatenate((rhs_sub, np.zeros(self.V.dim()-L))))
+
+            print("injection pattern"+str(i))
+            v = Function(self.V)
+            solve(B_transpose, v.vector(), rhs)
+            v_list.append(v)
+
+        return v_list
+    
+    def evaluate_gradient(self, q_list, v_list):
+
+        # loop over q_list and v_list
+        grad = Function(self.H_sigma)
+        grad.vector().zero()
+        L = self.L
+        sigma = TestFunction(self.H_sigma)
+        for i, (q, v) in enumerate(zip(q_list, v_list)):
+            grad.vector().axpy( 1, assemble(sigma * inner(nabla_grad(q[L]), nabla_grad(v[L]))*dx ))
+            print(i)
+            plt.figure()
+            plt.plot( assemble(sigma * inner(nabla_grad(q[L]), nabla_grad(v[L]))*dx )[:100])
+        
+        return grad
+        
 
     def solve_P(self, y_list, sigma_perturb):
         L = self.L
@@ -189,6 +224,7 @@ class  EITFenics:
     def build_spaces(self, mesh, L, subdomains):
         R = FunctionSpace(mesh, "R", 0)
         H1 = FunctionSpace(mesh, "CG", 1)
+        self.H_sigma = FunctionSpace(mesh, "DG", 0)
     
         spacelist = None
     
@@ -227,6 +263,22 @@ class  EITFenics:
     
         return assemble(B)
     
+    def build_b_adjoint(self, sigma, V, dS, L):
+    
+        # Define trial and test functions
+        u = TrialFunction(V)
+        v = TestFunction(V)
+    
+        B = sigma * inner(nabla_grad(u[L]), nabla_grad(v[L])) * dx
+    
+        for i in range(L):
+            B += 1/self.impedance[i] * (u[L]-u[i])*(v[L]-v[i]) * dS(i + 1)
+            #TODO: check if this is correct for P operator
+            B += (v[L+1]*u[i] / assemble(1*dS(i+1))) * dS(i+1)
+            B += (u[L+1]*v[i] / assemble(1*dS(i+1))) * dS(i+1)
+    
+        return assemble(adjoint(B))
+    
     
     def solver(self, I, B, V, dS, L):  # sigma ,L, I , Z ,mesh, subdomains )
        # def 2 pi function
@@ -249,6 +301,7 @@ class  EITFenics:
         Q = q.vector().get_local()[:L]
     
         return Q, q
+    
 
 class Inclusion(UserExpression):
     def __init__(self, phantom, **kwargs):
