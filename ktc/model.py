@@ -200,25 +200,14 @@ class FenicsForwardModel:
         return subdomains
 
     def _solution_space(self):
+        H = FunctionSpace(self.mesh, "CG", 1)
         R = FunctionSpace(self.mesh, "R", 0)
-        H1 = FunctionSpace(self.mesh, "CG", 1)
 
-        spacelist = None
+        mixed = H.ufl_element()
+        for i in range(self.electrode_count + 1):
+            mixed *= R.ufl_element()
 
-        for i in range(self.electrode_count):
-
-            if i == 1:
-                spacelist = R.ufl_element()
-            else:
-                spacelist *= R.ufl_element()
-
-        spacelist *= H1.ufl_element()
-        spacelist *= R.ufl_element()
-
-        # Create function space
-        V = FunctionSpace(mesh, spacelist)
-
-        return V
+        return FunctionSpace(mesh, mixed)
 
     def _boundary_measure(self):
         ds = Measure('ds', domain=self.mesh, subdomain_data=self.subdomains)
