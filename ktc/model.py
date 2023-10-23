@@ -58,7 +58,8 @@ class FenicsForwardModel:
         self.mesh = create_disk_mesh(1, self.n, self.F)
 
         self._build_subdomains()
-        self.V, self.dS = self.build_spaces(self.mesh, electrode_count, self.subdomains)
+        self.V = self.build_spaces(self.mesh, electrode_count, self.subdomains)
+        self.dS = self._boundary_measure()
         self.B_background = self.build_b(self.background_conductivity, self.V, self.dS, electrode_count)
 
     def _build_subdomains(self):
@@ -124,9 +125,10 @@ class FenicsForwardModel:
         Diff = np.zeros((electrode_count-1, num_inj))
         q_list = []
 
+        ds = _boundary_measure()
         for i in range(num_inj)[:num_inj_tested]:
             print("injection pattern"+str(i))
-            Q_i, q = self.solver(injection_patterns[:, i], B, self.V, self.dS, electrode_count)
+            Q_i, q = self.solver(injection_patterns[:, i], B, self.V, ds, electrode_count)
             q_list.append(q)
 
             Q[:, i] = Q_i
@@ -219,13 +221,14 @@ class FenicsForwardModel:
         # Create function space
         V = FunctionSpace(mesh, spacelist)
 
-        # Define new measures associated with the boundaries
-        dS = Measure('ds', domain=mesh, subdomain_data=subdomains)
+        return V
 
-        return V, dS
+    def _boundary_measure(self):
+        ds = Measure('ds', domain=self.mesh, subdomain_data=self.subdomains)
+        return ds
 
 
-    def build_b(self, sigma, V, dS, electrode_count):
+    def build_b(self, sigma, V, ds, electrode_count):
 
         # Define trial and test functions
         u = TrialFunction(V)
@@ -234,25 +237,25 @@ class FenicsForwardModel:
         B = sigma * inner(nabla_grad(u[electrode_count]), nabla_grad(v[electrode_count])) * dx
 
         for i in range(electrode_count):
-            B += 1/self.impedance[i] * (u[electrode_count]-u[i])*(v[electrode_count]-v[i]) * dS(i + 1)
+            B += 1/self.impedance[i] * (u[electrode_count]-u[i])*(v[electrode_count]-v[i]) * ds(i + 1)
             #TODO: check if this is correct for P operator
-            B += (v[electrode_count+1]*u[i] / assemble(1*dS(i+1))) * dS(i+1)
-            B += (u[electrode_count+1]*v[i] / assemble(1*dS(i+1))) * dS(i+1)
+            B += (v[electrode_count+1]*u[i] / assemble(1*ds(i+1))) * ds(i+1)
+            B += (u[electrode_count+1]*v[i] / assemble(1*ds(i+1))) * ds(i+1)
 
         return assemble(B)
 
 
-    def solver(self, I, B, V, dS, electrode_count):  # sigma ,electrode_count, I , Z ,mesh, subdomains )
+    def solver(self, I, B, V, ds, electrode_count):  # sigma ,electrode_count, I , Z ,mesh, subdomains )
        # def 2 pi function
 
         # Define trial and test functions
         u = TrialFunction(V)
         v = TestFunction(V)
 
-        f = 0*dS(1)
+        f = 0 * ds(1)
 
         for i in range(electrode_count):
-            f += (I[i] * v[i] / assemble(1*dS(i+1))) * dS(i+1)
+            f += (I[i] * v[i] / assemble(1*ds(i+1))) * ds(i+1)
 
         rhs = assemble(f)
 
