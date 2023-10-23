@@ -18,27 +18,23 @@ def create_disk_mesh(radius, n, F):
     return mesh
 
 class FenicsForwardModel:
-    def __init__(self, L=32, n=300, F=50):
-        self.L = L
+    def __init__(self, electrode_count=32, n=300, F=50):
+        self.electrode_count = electrode_count
+        self.impedance = np.full(electrode_count, 1e-6)
         self.F = F
         self.n = n
-        impedance_scalar = 1e-6
-
-        self.impedance = []
-        for i in range(self.L):
-            self.impedance.append(impedance_scalar)
 
         self.background_conductivity = 0.8
         self.mesh = create_disk_mesh(1, self.n, self.F)
 
         self._build_subdomains()
-        self.V, self.dS = self.build_spaces(self.mesh, L, self.subdomains)
-        self.B_background = self.build_b(self.background_conductivity, self.V, self.dS, L)
+        self.V, self.dS = self.build_spaces(self.mesh, electrode_count, self.subdomains)
+        self.B_background = self.build_b(self.background_conductivity, self.V, self.dS, electrode_count)
 
     def _build_subdomains(self):
-        L = self.L
-        e_l = np.pi / L
-        d_e = 2*np.pi / L - e_l
+        electrode_count = self.electrode_count
+        e_l = np.pi / electrode_count
+        d_e = 2*np.pi / electrode_count - e_l
 
         # Define subdomain mesh
         self.subdomains = MeshFunction("size_t", self.mesh, self.mesh.topology().dim()-1, 0)
@@ -62,10 +58,10 @@ class FenicsForwardModel:
                     and theta <= theta2
                 # return  theta>=theta1 and theta<=theta2
 
-        for i in range(1, L+1):
-            shift_theta = np.pi/2 - np.pi/(2*L)
+        for i in range(1, electrode_count+1):
+            shift_theta = np.pi/2 - np.pi/(2*electrode_count)
             # print "shift_theta", shift_theta
-            # print L
+            # print electrode_count
             theta1 = np.mod((i - 1) * (e_l+d_e) + shift_theta, 2*np.pi)
             theta2 = np.mod(theta1+e_l, 2*np.pi)
             # print i
@@ -75,28 +71,12 @@ class FenicsForwardModel:
             e1 .mark(self.subdomains, i)  # mark subdomains
             xdmf = XDMFFile("subdomains.xdmf")
             xdmf.write(self.subdomains)
-    def _create_inclusion(self, phantom):
-        high_conductivity = 1e1
-        low_conductivity = 1e-2
-        background_conductivity = self.background_conductivity
-        # Define conductivity
-        phantom_float = np.zeros(phantom.shape)
-        phantom_float[phantom == 0] = background_conductivity
-        phantom_float[np.isclose(phantom, 1, rtol=0.01)] = low_conductivity
-        phantom_float[phantom == 2] = high_conductivity
-
-        plt.figure()
-        im = plt.imshow(phantom_float)
-        plt.colorbar(im)  # norm= 'log'
-        plt.savefig("phantom.png")
-
-        self.inclusion = Inclusion(phantom_float, degree=0)
 
     def solve_forward(self, injection_patterns, phantom=None, num_inj_tested=None):
         if (phantom is not None):
             self._create_inclusion(phantom)
-            
-        L = self.L
+
+        electrode_count = self.electrode_count
 
         # Define vector of contact impedance
         # z = 10e-6  # 0.1 # Impedence
@@ -108,15 +88,15 @@ class FenicsForwardModel:
         # Loop over current patterns
         num_inj = 76  # Number of injection pattern
         # num_inj_tested = 76
-        B = self.B_background if phantom is None else self.build_b(self.inclusion, self.V, self.dS, L)
+        B = self.B_background if phantom is None else self.build_b(self.inclusion, self.V, self.dS, electrode_count)
 
-        Q = np.zeros((L, num_inj))
-        Diff = np.zeros((L-1, num_inj))
+        Q = np.zeros((electrode_count, num_inj))
+        Diff = np.zeros((electrode_count-1, num_inj))
         q_list = []
 
         for i in range(num_inj)[:num_inj_tested]:
             print("injection pattern"+str(i))
-            Q_i, q = self.solver(injection_patterns[:, i], B, self.V, self.dS, L)
+            Q_i, q = self.solver(injection_patterns[:, i], B, self.V, self.dS, electrode_count)
             q_list.append(q)
 
             Q[:, i] = Q_i
@@ -126,7 +106,7 @@ class FenicsForwardModel:
         return Uel_sim, Q, q_list
 
     def solve_P(self, y_list, sigma_perturb):
-        L = self.L
+        electrode_count = self.electrode_count
 
         # Define H1 room
         H1 = FunctionSpace(self.mesh, 'CG', 1)
@@ -136,7 +116,7 @@ class FenicsForwardModel:
         w_list = []
         for y in y_list:
 
-            f = -sigma_perturb * inner(nabla_grad(y[L]), nabla_grad(v[L])) * dx
+            f = -sigma_perturb * inner(nabla_grad(y[electrode_count]), nabla_grad(v[electrode_count])) * dx
 
             rhs = assemble(f)
 
@@ -150,15 +130,15 @@ class FenicsForwardModel:
 
 
 
-    def build_subdomains(self, L, mesh):
+    def build_subdomains(self, electrode_count, mesh):
         def twopiarctan(x):
             val = np.arctan2(x[1], x[0])
             if val < 0:
                 val = val+2*np.pi
             return val
 
-        e_l = np.pi / L
-        d_e = 2*np.pi / L - e_l
+        e_l = np.pi / electrode_count
+        d_e = 2*np.pi / electrode_count - e_l
 
         # Define subdomain mesh
         subdomains = MeshFunction("size_t", mesh, mesh.topology().dim()-1, 0)
@@ -176,10 +156,10 @@ class FenicsForwardModel:
                     and theta <= theta2
                 # return  theta>=theta1 and theta<=theta2
 
-        for i in range(1, L+1):
-            shift_theta = np.pi/2 - np.pi/(2*L)
+        for i in range(1, electrode_count+1):
+            shift_theta = np.pi/2 - np.pi/(2*electrode_count)
             # print "shift_theta", shift_theta
-            # print L
+            # print electrode_count
             theta1 = np.mod((i - 1) * (e_l+d_e) + shift_theta, 2*np.pi)
             theta2 = np.mod(theta1+e_l, 2*np.pi)
             # print i
@@ -190,13 +170,13 @@ class FenicsForwardModel:
 
         return subdomains
 
-    def build_spaces(self, mesh, L, subdomains):
+    def build_spaces(self, mesh, electrode_count, subdomains):
         R = FunctionSpace(mesh, "R", 0)
         H1 = FunctionSpace(mesh, "CG", 1)
 
         spacelist = None
 
-        for i in range(1, L+1):
+        for i in range(1, electrode_count+1):
 
             if i == 1:
                 spacelist = R.ufl_element()
@@ -215,24 +195,24 @@ class FenicsForwardModel:
         return V, dS
 
 
-    def build_b(self, sigma, V, dS, L):
+    def build_b(self, sigma, V, dS, electrode_count):
 
         # Define trial and test functions
         u = TrialFunction(V)
         v = TestFunction(V)
 
-        B = sigma * inner(nabla_grad(u[L]), nabla_grad(v[L])) * dx
+        B = sigma * inner(nabla_grad(u[electrode_count]), nabla_grad(v[electrode_count])) * dx
 
-        for i in range(L):
-            B += 1/self.impedance[i] * (u[L]-u[i])*(v[L]-v[i]) * dS(i + 1)
+        for i in range(electrode_count):
+            B += 1/self.impedance[i] * (u[electrode_count]-u[i])*(v[electrode_count]-v[i]) * dS(i + 1)
             #TODO: check if this is correct for P operator
-            B += (v[L+1]*u[i] / assemble(1*dS(i+1))) * dS(i+1)
-            B += (u[L+1]*v[i] / assemble(1*dS(i+1))) * dS(i+1)
+            B += (v[electrode_count+1]*u[i] / assemble(1*dS(i+1))) * dS(i+1)
+            B += (u[electrode_count+1]*v[i] / assemble(1*dS(i+1))) * dS(i+1)
 
         return assemble(B)
 
 
-    def solver(self, I, B, V, dS, L):  # sigma ,L, I , Z ,mesh, subdomains )
+    def solver(self, I, B, V, dS, electrode_count):  # sigma ,electrode_count, I , Z ,mesh, subdomains )
        # def 2 pi function
 
         # Define trial and test functions
@@ -241,7 +221,7 @@ class FenicsForwardModel:
 
         f = 0*dS(1)
 
-        for i in range(L):
+        for i in range(electrode_count):
             f += (I[i] * v[i] / assemble(1*dS(i+1))) * dS(i+1)
 
         rhs = assemble(f)
@@ -250,17 +230,6 @@ class FenicsForwardModel:
         q = Function(V)
         solve(B, q.vector(), rhs)
 
-        Q = q.vector().get_local()[:L]
+        Q = q.vector().get_local()[:electrode_count]
 
         return Q, q
-
-class Inclusion(UserExpression):
-    def __init__(self, phantom, **kwargs):
-        super().__init__(**kwargs)
-        x_grid = np.linspace(-1, 1, 256)
-        y_grid = np.linspace(-1, 1, 256)
-        self._interpolater = RegularGridInterpolator(
-            (x_grid, y_grid), phantom, method="nearest")
-
-    def eval(self, values, x):
-        values[0] = self._interpolater([x[0], x[1]])
