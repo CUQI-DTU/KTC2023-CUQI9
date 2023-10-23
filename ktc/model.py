@@ -58,9 +58,7 @@ class FenicsForwardModel:
         self.mesh = create_disk_mesh(1, self.n, self.F)
 
         self._build_subdomains()
-        self.V = self.build_spaces(self.mesh, electrode_count, self.subdomains)
-        self.dS = self._boundary_measure()
-        self.B_background = self.build_b(self.background_conductivity, self.V, self.dS, electrode_count)
+        self.B_background = self.build_b(self.background_conductivity, electrode_count)
 
     def _build_subdomains(self):
         electrode_count = self.electrode_count
@@ -103,32 +101,31 @@ class FenicsForwardModel:
             xdmf = XDMFFile("subdomains.xdmf")
             xdmf.write(self.subdomains)
 
-    def solve_forward(self, injection_patterns, phantom=None, num_inj_tested=None):
-        if (phantom is not None):
-            self._create_inclusion(phantom)
+    def solve_forward(self, injection_pattern):
 
-        electrode_count = self.electrode_count
+        #electrode_count = self.electrode_count
 
         # Define vector of contact impedance
         # z = 10e-6  # 0.1 # Impedence
 
 
         # Define H1 room
-        H1 = FunctionSpace(self.mesh, 'CG', 1)
+        H = FunctionSpace(self.mesh, 'CG', 1)
 
         # Loop over current patterns
         num_inj = 76  # Number of injection pattern
         # num_inj_tested = 76
-        B = self.B_background if phantom is None else self.build_b(self.inclusion, self.V, self.dS, electrode_count)
+        B = self.B_background
 
         Q = np.zeros((electrode_count, num_inj))
         Diff = np.zeros((electrode_count-1, num_inj))
         q_list = []
 
+        V = self._solution_space()
         ds = _boundary_measure()
         for i in range(num_inj)[:num_inj_tested]:
             print("injection pattern"+str(i))
-            Q_i, q = self.solver(injection_patterns[:, i], B, self.V, ds, electrode_count)
+            Q_i, q = self.solver(injection_patterns[:, i], B, V, ds, self.electrode_count)
             q_list.append(q)
 
             Q[:, i] = Q_i
@@ -138,12 +135,14 @@ class FenicsForwardModel:
         return Uel_sim, Q, q_list
 
     def solve_P(self, y_list, sigma_perturb):
+        V = self._solution_space
+
         electrode_count = self.electrode_count
 
         # Define H1 room
         H1 = FunctionSpace(self.mesh, 'CG', 1)
         B = self.B_background
-        v = TestFunction(self.V)
+        v = TestFunction(V)
 
         w_list = []
         for y in y_list:
@@ -153,7 +152,7 @@ class FenicsForwardModel:
             rhs = assemble(f)
 
             # Compute solution
-            w = Function(self.V)
+            w = Function(V)
             solve(B, w.vector(), rhs)
             w_list.append(w)
 
@@ -202,13 +201,13 @@ class FenicsForwardModel:
 
         return subdomains
 
-    def build_spaces(self, mesh, electrode_count, subdomains):
-        R = FunctionSpace(mesh, "R", 0)
-        H1 = FunctionSpace(mesh, "CG", 1)
+    def _solution_space(self):
+        R = FunctionSpace(self.mesh, "R", 0)
+        H1 = FunctionSpace(self.mesh, "CG", 1)
 
         spacelist = None
 
-        for i in range(1, electrode_count+1):
+        for i in range(self.electrode_count):
 
             if i == 1:
                 spacelist = R.ufl_element()
@@ -228,7 +227,10 @@ class FenicsForwardModel:
         return ds
 
 
-    def build_b(self, sigma, V, ds, electrode_count):
+    def build_b(self, sigma, electrode_count):
+
+        V = self._solution_space()
+        ds = self._boundary_measure()
 
         # Define trial and test functions
         u = TrialFunction(V)
@@ -245,7 +247,7 @@ class FenicsForwardModel:
         return assemble(B)
 
 
-    def solver(self, I, B, V, ds, electrode_count):  # sigma ,electrode_count, I , Z ,mesh, subdomains )
+    def solver(self, I, B, V, ds, electrode_count):
        # def 2 pi function
 
         # Define trial and test functions
