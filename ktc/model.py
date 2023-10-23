@@ -17,6 +17,36 @@ def create_disk_mesh(radius, n, F):
     mesh = generate_mesh(domain, F)
     return mesh
 
+def _create_inclusion(phantom):
+    high_conductivity = 1e1
+    low_conductivity = 1e-2
+    background_conductivity = background_conductivity
+    # Define conductivity
+    phantom_float = np.zeros(phantom.shape)
+    phantom_float[phantom == 0] = background_conductivity
+    phantom_float[np.isclose(phantom, 1, rtol=0.01)] = low_conductivity
+    phantom_float[phantom == 2] = high_conductivity
+
+    plt.figure()
+    im = plt.imshow(phantom_float)
+    plt.colorbar(im)  # norm= 'log'
+    plt.savefig("phantom.png")
+
+    self.inclusion = Inclusion(phantom_float, degree=0)
+
+class Inclusion(UserExpression):
+    def __init__(self, phantom, **kwargs):
+        super().__init__(**kwargs)
+        x_grid = np.linspace(-1, 1, 256)
+        y_grid = np.linspace(-1, 1, 256)
+        self._interpolater = RegularGridInterpolator(
+            (x_grid, y_grid), phantom, method="nearest")
+
+    def eval(self, values, x):
+        values[0] = self._interpolater([x[0], x[1]])
+
+
+
 class FenicsForwardModel:
     def __init__(self, electrode_count=32, n=300, F=50):
         self.electrode_count = electrode_count
