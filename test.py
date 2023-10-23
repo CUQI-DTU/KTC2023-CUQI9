@@ -16,6 +16,7 @@ mesh = create_disk_mesh(radius, 300, 50)
 
 model = FenicsForwardModel(electrode_count)
 
-num_inj_tested = 76
+num_inj_tested = 5
 Imatr = sp.io.loadmat(DATA + "ref.mat")["Injref"]
-Uel_sim, Q, q_list = model.solve_forward(Imatr, num_inj_tested)
+print(Imatr)
+Uel_sim, Q, q_list = model.solve_forward(injection_patterns=Imatr, num_inj_tested = num_inj_tested)

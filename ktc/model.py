@@ -93,7 +93,9 @@ class FenicsForwardModel:
         self.inclusion = Inclusion(phantom_float, degree=0)
 
     def solve_forward(self, injection_patterns, phantom=None, num_inj_tested=None):
-        self._create_inclusion(phantom)
+        if (phantom is not None):
+            self._create_inclusion(phantom)
+            
         L = self.L
 
         # Define vector of contact impedance
