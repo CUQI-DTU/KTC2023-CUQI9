@@ -204,7 +204,7 @@ class  EITFenics:
         V = FunctionSpace(mesh, spacelist)
     
         # Define new measures associated with the boundaries
-        dS = Measure('ds', domain=mesh)[subdomains]
+        dS = Measure('ds', domain=mesh, subdomain_data=subdomains)
     
         return V, dS
     
