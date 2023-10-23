@@ -48,14 +48,12 @@ class Inclusion(UserExpression):
 
 
 class FenicsForwardModel:
-    def __init__(self, electrode_count, n=300, F=50):
+    def __init__(self, electrode_count):
         self.electrode_count = electrode_count
         self.impedance = np.full(electrode_count, 1e-6)
-        self.F = F
-        self.n = n
 
         self.background_conductivity = 0.8
-        self.mesh = create_disk_mesh(1, self.n, self.F)
+        self.mesh = create_disk_mesh(1, 300, 50)
 
         self._build_subdomains()
         self.B_background = self.build_b(self.background_conductivity, electrode_count)
