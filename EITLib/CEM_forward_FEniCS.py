@@ -55,7 +55,7 @@ F = 50
 myeit = EITFenics(L, F)
 num_inj_tested = 76
 z = 1e-6 
-Uel_sim, Q, q_list = myeit.solve_forward(phantom, Imatr, num_inj_tested, z)
+Uel_sim, Q, q_list = myeit.solve_forward(Imatr, phantom, num_inj_tested)
 
 #%%
 H = FunctionSpace(myeit.mesh, 'CG', 1)
@@ -77,12 +77,12 @@ w_list = myeit.solve_P(q_list, sigma_perturb)
 # Solve forward for background phantom A
 phantomA = np.copy(phantom)
 phantomA[:] = 0.8
-Uel_sim_A, Q_A, q_list_A = myeit.solve_forward(phantomA, Imatr, num_inj_tested, z)
+Uel_sim_A, Q_A, q_list_A = myeit.solve_forward( Imatr, phantomA, num_inj_tested)
 
 #%%
 # Solve forward for background phantom AC
 phantomAC = np.copy(phantom)
-Uel_sim_AC, Q_AC, q_list_AC = myeit.solve_forward(phantomAC, Imatr, num_inj_tested, z)
+Uel_sim_AC, Q_AC, q_list_AC = myeit.solve_forward( Imatr, phantomAC, num_inj_tested)
 
 
 

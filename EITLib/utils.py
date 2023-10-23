@@ -88,7 +88,7 @@ class  EITFenics:
         plt.savefig("phantom.png")
 
         self.inclusion = Inclusion(phantom_float, degree=0)
-    def solve_forward(self, phantom, injection_patterns, num_inj_tested, z=1e-6):
+    def solve_forward(self, injection_patterns, phantom=None, num_inj_tested=None):
         self._create_inclusion(phantom)
         L = self.L
 
@@ -102,8 +102,8 @@ class  EITFenics:
         # Loop over current patterns
         num_inj = 76  # Number of injection pattern
         # num_inj_tested = 76
+        B = self.B_background if phantom is None else self.build_b(self.inclusion, self.V, self.dS, L)
 
-        B = self.build_b(self.inclusion, self.V, self.dS, L)
         Q = np.zeros((L, num_inj))
         Diff = np.zeros((L-1, num_inj))
         q_list = []
