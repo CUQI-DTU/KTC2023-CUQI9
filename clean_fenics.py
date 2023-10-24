@@ -106,6 +106,20 @@ def _solve(solution_space, bilinear_form, rhs, mesh):
     v.vector().set_local(x[:-(electrode_count+1)])
     return v, V
 
+class FenicsForwardModel:
+    def __init__(self, mesh, subdomains, electrode_count, impedance, background_conductivity):
+        self.mesh = mesh
+        self.subdomains = subdomains
+        self.electrode_count = electrode_count
+        self.impedance = impedance
+        self.background_conductivity = background_conductivity
+        
+    def solve_forward(self, injection_pattern):
+        pass
+    def solve_P(self, y_list, sigma_perturb):
+        pass
+
+
 mesh, subdomains = create_disk_mesh(radius, 32, 300, 50)
 dx = _domain_measure(mesh)
 ds = _boundary_measure(mesh, subdomains)
