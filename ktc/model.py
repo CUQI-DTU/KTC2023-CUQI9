@@ -19,10 +19,10 @@ from dolfin import solve, plot
 # phase = np.pi / 2
 
 
-def create_disk_mesh(radius, electrode_count, polygons = 300, cell_size = 50):
+def create_disk_mesh(radius, electrode_count, polygons = 300, fineness = 50):
     center = Point(0, 0)
     domain = Circle(center, radius, polygons)
-    mesh = generate_mesh(domain, cell_size)
+    mesh = generate_mesh(domain, fineness)
     electrode_width = np.pi / electrode_count
     phase = np.pi / 2
     class Electrode(SubDomain):
@@ -34,7 +34,8 @@ def create_disk_mesh(radius, electrode_count, polygons = 300, cell_size = 50):
         def inside(self, x, on_boundary):
             r = np.linalg.norm(x)
             u, v = (np.cos(self.theta), np.sin(self.theta))
-            rho = np.arccos(np.dot(x, [u, v]) / r)
+            dot = np.clip(np.dot(x, [u, v])/r,-1,1)
+            rho = np.arccos(dot)
             proj = np.maximum(2 * np.abs(rho), self.width)
             return on_boundary and np.isclose(proj, self.width)
 
@@ -50,6 +51,20 @@ def create_disk_mesh(radius, electrode_count, polygons = 300, cell_size = 50):
 
 
 class FenicsForwardModel:
+    # TODO: Verify that the mesh representation is correct
+    def _characteristic_function(self, mesh, n):
+        H = self._interior_potential_space()
+        C = FunctionSpace(mesh, "DG", 0)
+        
+        print(C.dim())
+        #chi = Function(C)
+        
+        #chi.vector().set_local()
+        
+        #chi.vector().set
+        
+        
+    
     def __init__(self, mesh, subdomains, electrode_count, impedance, conductivity):
         self.mesh = mesh
         self.subdomains = subdomains
@@ -80,6 +95,15 @@ class FenicsForwardModel:
         L = inner(nabla_grad(y), nabla_grad(v))*pertubation*dx
         y, Y = self._solve(L)
         return y, Y
+    
+    def gradient(self, mesh):
+        
+        pass
+    
+    def _gradient_inner_product(self, u, v, B):
+        dx = self._domain_measure()
+        integrand = inner(nabla_grad(u), nabla_grad(v))*B
+        return assemble(integrand*dx)
     
     def _solution_space(self):
         H = self._interior_potential_space()

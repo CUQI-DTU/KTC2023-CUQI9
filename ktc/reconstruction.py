@@ -1,22 +1,25 @@
 import numpy as np
-import pygmsh
 
-from model import ForwardModel
-from numpy.typing import ArrayLike
+from ktc.model import FenicsForwardModel
 class SeriesReversion:
-    def __init__(self, model: ForwardModel, mesh, **kwargs):
+    # Current injections: each row is a unique injection pattern
+    def __init__(self, model, mesh, current_injections):
         self.model = model
         self.mesh = mesh
-        self.sigma_ref = kwargs.get("sigma", 1)
-        self.data_ref = kwargs.get("data", 0)  # Compute default using fwd model
-        self.rec_mesh = self.generate_reconstruction_mesh(boundary_gap = 0.1, mesh_size = 0.2)
         
-    def frame_operator(self, current_injections):
-        S = current_injections @ current_injections.T
-        return S
+        #self.u = []
+        #self.U = []
+        #for current_injection in current_injections:
+        #    ui, Ui = self.model.solve_forward(current_injection)
+        #    self.u.append(ui)
+        #    self.U.append(Ui)
+            
+        # Construct conoical dual frame
+        ## TODO: Solve using lsq (and verify it is correct)
+        #self.dual_frame = np.linalg.solve(current_injections @ current_injections.T, #current_injections)
         
-    def reconstruct(self, current_injections: ArrayLike, data: ArrayLike):
-        J = self.model.jacobian(self.sigma_ref, self.mesh)
+    def reconstruct(self, data):
+        J = self.model.gradient(self.sigma_ref, self.mesh)
     
         F1 = np.linalg.solve(J, (data - self.data_ref))
 
@@ -27,3 +30,6 @@ class SeriesReversion:
         # F2 = np.linalg.solve(J, v)
 
         return F1
+
+    def _gradient():
+        pass
