@@ -1,5 +1,7 @@
 import glob
 import numpy as np
+import mshr
+from dolfin import *
 # from ktc import model
 
 DATA = sorted(glob.glob("data/TrainingData/data*.mat"))
@@ -34,4 +36,6 @@ def create_disk_mesh(radius, polygons, cell_size):
 
     return mesh, subdomains
 
-
+# %% Write subdomains to XDMF file
+xdmf = XDMFFile("subdomains.xdmf")
+xdmf.write(self.subdomains)
