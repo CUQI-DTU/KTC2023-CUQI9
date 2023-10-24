@@ -1,6 +1,6 @@
 import glob
 import numpy as np
-import mshr
+from mshr import *
 from dolfin import *
 # from ktc import model
 
@@ -14,7 +14,7 @@ phase = np.pi / 2
 
 # %% Create mesh
 
-def create_disk_mesh(radius, polygons, cell_size):
+def create_disk_mesh(radius, electrode_count, polygons, cell_size):
     center = Point(0, 0)
     domain = Circle(center, radius, polygons)
     mesh = generate_mesh(domain, cell_size)
@@ -40,4 +40,4 @@ mesh, subdomains = create_disk_mesh(radius, 32, 300, 50)
 
 # %% Write subdomains to XDMF file
 xdmf = XDMFFile("subdomains.xdmf")
-xdmf.write(self.subdomains)
+xdmf.write(subdomains)
