@@ -1,0 +1,4 @@
+{
+    "python.pythonPath": "/home/jakob/miniforge3/envs/ktc/bin/python",
+    // "python.analysis.extraPaths": ["app", "another/path/etc"]
+}

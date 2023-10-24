@@ -1,5 +1,5 @@
 #%%
-from utils import *
+from ktc.fenics_model import *
 from dolfin import *
 
 #eit_fine = EITFenics(32, 50, 300)

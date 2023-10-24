@@ -11,7 +11,7 @@ Created on Wed May 13 0 8 : 1 8 : 4 7 2015
 """
 from dolfin import *
 from matplotlib import pyplot as plt
-from utils import *
+from ktc.fenics_model import *
 import scipy.io as io
 
 # %% set up data

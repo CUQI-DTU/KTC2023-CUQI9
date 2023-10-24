@@ -1,8 +1,9 @@
 import glob
 import numpy as np
 from mshr import *
-from dolfin import *
-# from ktc import model
+from dolfin import Point, SubDomain, MeshFunction, XDMFFile
+from dolfin import FunctionSpace, TrialFunction, TestFunction
+from dolfin import Measure, inner, nabla_grad, assemble
 
 DATA = sorted(glob.glob("data/TrainingData/data*.mat"))
 TRUTH = sorted(glob.glob("data/GroundTruths/true*.mat"))
@@ -12,7 +13,6 @@ electrode_count = 32
 electrode_width = np.pi / electrode_count
 phase = np.pi / 2
 
-# %% Create mesh
 
 def create_disk_mesh(radius, electrode_count, polygons, cell_size):
     center = Point(0, 0)
@@ -41,20 +41,56 @@ def create_disk_mesh(radius, electrode_count, polygons, cell_size):
 
     return mesh, subdomains
 
-mesh, subdomains = create_disk_mesh(radius, 32, 300, 50)
 
-# %% Write subdomains to XDMF file
-xdmf = XDMFFile("subdomains.xdmf")
-xdmf.write(subdomains)
-
-# %% Build spaces
-
-def solution_space(self):
-    H = FunctionSpace(self.mesh, "CG", 1)
-    R = FunctionSpace(self.mesh, "R", 0)
+def _solution_space(mesh, electrode_count):
+    H = FunctionSpace(mesh, "CG", 1)
+    R = FunctionSpace(mesh, "R", 0)
 
     mixed = H.ufl_element()
-    for i in range(self.electrode_count + 1):
+    for i in range(electrode_count + 1):
         mixed *= R.ufl_element()
 
     return FunctionSpace(mesh, mixed)
+
+def _domain_measure(mesh):
+        dx = Measure('dx', domain=mesh)
+        return dx
+
+def _boundary_measure(mesh, subdomains):
+        ds = Measure('ds', domain=mesh, subdomain_data=subdomains)
+        return ds
+
+def _bilinear_form(solution_space, dx, ds, electrode_count, sigma, impedance):
+        # Define trial and test functions
+        (u, p, *U) = TrialFunction(solution_space)
+        (v, q, *V) = TestFunction(solution_space)
+
+        a = sigma * inner(nabla_grad(u), nabla_grad(v)) * dx
+        for i in range(electrode_count):
+            a += 1/impedance[i] * (u - U[i]) * (v - V[i]) * ds(i + 1)
+
+            # Enforce mean free electrode potentials
+            area = assemble(1*ds(i + 1))
+            a += (q*U[i] + p*V[i])/area*ds(i + 1)
+
+        return assemble(a)
+    
+_bilinear_form(mesh, subdomains, 1, electrode_count, np.full(electrode_count,1e-6))
+
+def _rhs(solution_space, ds, dx, electrode_count, current_injection, F = 0):
+    
+    (_, _, *V) = TestFunction(solution_space)
+    
+    L = F * dx
+    for i in range(electrode_count):
+        area = assemble(1*ds(i+1))
+        L += (current_injection[i] * V[i] / area) * ds(i+1)
+
+    return assemble(L)
+
+
+
+mesh, subdomains = create_disk_mesh(radius, 32, 300, 50)
+
+xdmf = XDMFFile("subdomains.xdmf")
+xdmf.write(subdomains)
