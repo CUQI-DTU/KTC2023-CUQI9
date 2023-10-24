@@ -24,7 +24,7 @@ def create_disk_mesh(radius, electrode_count, polygons, cell_size):
             super().__init__()
             self.theta = theta
             self.width = width
-            
+
         def inside(self, x, on_boundary):
             r = np.linalg.norm(x)
             u, v = (np.cos(self.theta), np.sin(self.theta))
@@ -46,3 +46,15 @@ mesh, subdomains = create_disk_mesh(radius, 32, 300, 50)
 # %% Write subdomains to XDMF file
 xdmf = XDMFFile("subdomains.xdmf")
 xdmf.write(subdomains)
+
+# %% Build spaces
+
+def solution_space(self):
+    H = FunctionSpace(self.mesh, "CG", 1)
+    R = FunctionSpace(self.mesh, "R", 0)
+
+    mixed = H.ufl_element()
+    for i in range(self.electrode_count + 1):
+        mixed *= R.ufl_element()
+
+    return FunctionSpace(mesh, mixed)
