@@ -50,12 +50,12 @@ def create_disk_mesh(radius, electrode_count, polygons = 300, cell_size = 50):
 
 
 class FenicsForwardModel:
-    def __init__(self, mesh, subdomains, electrode_count, impedance, background_conductivity):
+    def __init__(self, mesh, subdomains, electrode_count, impedance, conductivity):
         self.mesh = mesh
         self.subdomains = subdomains
         self.electrode_count = electrode_count
         self.impedance = impedance
-        self.background_conductivity = background_conductivity
+        self.conductivity = conductivity
      
         self.solution_space = self._solution_space()
         self.a = self._bilinear_form()
@@ -109,7 +109,7 @@ class FenicsForwardModel:
 
             dx = self._domain_measure() 
             ds = self._boundary_measure()
-            a = self.background_conductivity * inner(nabla_grad(u), nabla_grad(v)) * dx
+            a = self.conductivity * inner(nabla_grad(u), nabla_grad(v)) * dx
             for i in range(self.electrode_count):
                 a += 1/self.impedance[i] * (u - U[i]) * (v - V[i]) * ds(i + 1)
 
