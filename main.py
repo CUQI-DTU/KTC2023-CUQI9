@@ -1,13 +1,16 @@
 import glob
 import numpy as np
 import scipy as sp
+import matplotlib.pyplot as plt
 from mshr import *
 from dolfin import Point, SubDomain, MeshFunction, XDMFFile
-from dolfin import FunctionSpace, TrialFunction, TestFunction
+from dolfin import Function, FunctionSpace, TrialFunction, TestFunction
 from dolfin import Measure, inner, nabla_grad, assemble
-
-REFERENCE = glob.glob("data/TrainingData/ref.mat")
+from dolfin import solve, plot
+REFERENCE = sp.io.loadmat("data/TrainingData/ref.mat")
+CURRENT_INJECTIONS = REFERENCE["Injref"]
 DATA = sorted(glob.glob("data/TrainingData/data*.mat"))
+# DATA = sp.io.loadmat("data/TrainingData/data*.mat")
 TRUTH = sorted(glob.glob("data/GroundTruths/true*.mat"))
 
 radius = 1
@@ -43,9 +46,11 @@ def create_disk_mesh(radius, electrode_count, polygons, cell_size):
 
     return mesh, subdomains
 
+def _interior_potential_space(mesh):
+    return FunctionSpace(mesh, "CG", 1)
 
 def _solution_space(mesh, electrode_count):
-    H = FunctionSpace(mesh, "CG", 1)
+    H = _interior_potential_space(mesh)
     R = FunctionSpace(mesh, "R", 0)
 
     mixed = H.ufl_element()
@@ -75,7 +80,7 @@ def _bilinear_form(solution_space, dx, ds, electrode_count, sigma, impedance):
             area = assemble(1*ds(i + 1))
             a += (q*U[i] + p*V[i])/area*ds(i + 1)
 
-        return assemble(a)
+        return a
 
 def _rhs(solution_space, dx, ds, electrode_count, current_injection, F = 0):
     
@@ -86,18 +91,33 @@ def _rhs(solution_space, dx, ds, electrode_count, current_injection, F = 0):
         area = assemble(1*ds(i+1))
         L += (current_injection[i] * V[i] / area) * ds(i+1)
 
-    return assemble(L)
+    return L
 
-
+def _solve(solution_space, bilinear_form, rhs, mesh):
+    w = Function(solution_space)
+    solve(bilinear_form == rhs, w)
+    
+    x = w.vector().get_local()
+    V = x[-electrode_count:]
+    
+    # TODO: Find better way to split mixed function
+    H = _interior_potential_space(mesh)
+    v = Function(H)
+    v.vector().set_local(x[:-(electrode_count+1)])
+    return v, V
 
 mesh, subdomains = create_disk_mesh(radius, 32, 300, 50)
 dx = _domain_measure(mesh)
 ds = _boundary_measure(mesh, subdomains)
 solution_space = _solution_space(mesh, electrode_count)
-B = _bilinear_form(solution_space, dx, ds, electrode_count, 1.0, np.full(electrode_count,1e-6))
+a = _bilinear_form(solution_space, dx, ds, electrode_count, 1.0, np.full(electrode_count,1e-6))
+L = _rhs(solution_space, dx, ds, electrode_count, CURRENT_INJECTIONS[:,0])
 
-current_injections = sp.io.loadmat("data/TrainingData/ref.mat")["Injref"]
-f = _rhs(solution_space, dx, ds, electrode_count, current_injections[:,0])
+v,V = _solve(solution_space, a, L, mesh)
+print(v.vector().get_local().shape)
+print(len(mesh.coordinates()))
+plot(v)
+plt.show()
+
 xdmf = XDMFFile("subdomains.xdmf")
 xdmf.write(subdomains)
-
