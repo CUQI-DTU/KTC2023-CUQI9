@@ -1,10 +1,12 @@
 import glob
 import numpy as np
+import scipy as sp
 from mshr import *
 from dolfin import Point, SubDomain, MeshFunction, XDMFFile
 from dolfin import FunctionSpace, TrialFunction, TestFunction
 from dolfin import Measure, inner, nabla_grad, assemble
 
+REFERENCE = glob.glob("data/TrainingData/ref.mat")
 DATA = sorted(glob.glob("data/TrainingData/data*.mat"))
 TRUTH = sorted(glob.glob("data/GroundTruths/true*.mat"))
 
@@ -74,10 +76,8 @@ def _bilinear_form(solution_space, dx, ds, electrode_count, sigma, impedance):
             a += (q*U[i] + p*V[i])/area*ds(i + 1)
 
         return assemble(a)
-    
-_bilinear_form(mesh, subdomains, 1, electrode_count, np.full(electrode_count,1e-6))
 
-def _rhs(solution_space, ds, dx, electrode_count, current_injection, F = 0):
+def _rhs(solution_space, dx, ds, electrode_count, current_injection, F = 0):
     
     (_, _, *V) = TestFunction(solution_space)
     
@@ -91,6 +91,13 @@ def _rhs(solution_space, ds, dx, electrode_count, current_injection, F = 0):
 
 
 mesh, subdomains = create_disk_mesh(radius, 32, 300, 50)
+dx = _domain_measure(mesh)
+ds = _boundary_measure(mesh, subdomains)
+solution_space = _solution_space(mesh, electrode_count)
+B = _bilinear_form(solution_space, dx, ds, electrode_count, 1.0, np.full(electrode_count,1e-6))
 
+current_injections = sp.io.loadmat("data/TrainingData/ref.mat")["Injref"]
+f = _rhs(solution_space, dx, ds, electrode_count, current_injections[:,0])
 xdmf = XDMFFile("subdomains.xdmf")
 xdmf.write(subdomains)
+
