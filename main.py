@@ -36,6 +36,8 @@ def create_disk_mesh(radius, polygons, cell_size):
 
     return mesh, subdomains
 
+mesh, subdomains = create_disk_mesh(radius, 32, 300, 50)
+
 # %% Write subdomains to XDMF file
 xdmf = XDMFFile("subdomains.xdmf")
 xdmf.write(self.subdomains)
