@@ -20,18 +20,23 @@ def create_disk_mesh(radius, electrode_count, polygons, cell_size):
     mesh = generate_mesh(domain, cell_size)
 
     class Electrode(SubDomain):
+        def __init__(self, theta, width):
+            super().__init__()
+            self.theta = theta
+            self.width = width
+            
         def inside(self, x, on_boundary):
             r = np.linalg.norm(x)
-            u, v = (np.cos(theta), np.sin(theta))
+            u, v = (np.cos(self.theta), np.sin(self.theta))
             rho = np.arccos(np.dot(x, [u, v]) / r)
-            proj = np.maximum(2 * np.abs(rho), electrode_width)
-            return on_boundary and np.isclose(proj, electrode_width)
+            proj = np.maximum(2 * np.abs(rho), self.width)
+            return on_boundary and np.isclose(proj, self.width)
 
     topology = mesh.topology()
     subdomains = MeshFunction("size_t", mesh, topology.dim() - 1)
     for i in range(electrode_count):
         theta = 2 * np.pi * i / electrode_count + phase
-        electrode = Electrode()
+        electrode = Electrode(theta, electrode_width)
         electrode.mark(subdomains, i + 1)
 
     return mesh, subdomains
