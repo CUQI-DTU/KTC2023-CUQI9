@@ -37,11 +37,11 @@ for idx, fileName in enumerate(DATA_FILES):
     boundary_gap = 0.1
     reconstruction_mesh, _ = create_disk_mesh(radius - boundary_gap, electrode_count, polygons=50, fineness=7)
 
-    # W = FunctionSpace(reconstruction_mesh, "DG", 0)
-    # series_reversion = SeriesReversion(forward_model, reconstruction_mesh, CURRENT_INJECTIONS, W)
+    W = FunctionSpace(reconstruction_mesh, "DG", 0)
+    series_reversion = SeriesReversion(forward_model, reconstruction_mesh, CURRENT_INJECTIONS, W)
  
-    # F = series_reversion.reconstruct(data.voltages)
-    # series_reversion.solution_plot(F)
+    F = series_reversion.reconstruct(data.voltages)
+    series_reversion.solution_plot(F)
     now = datetime.now()
     file_name = now.strftime("%d_time_%H_%M.png")
     plt.savefig(file_name)
