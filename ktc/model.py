@@ -2,9 +2,11 @@ import glob
 import numpy as np
 import scipy as sp
 import matplotlib.pyplot as plt
+from itertools import product
+
 from mshr import *
 from dolfin import Point, SubDomain, MeshFunction, XDMFFile
-from dolfin import Function, FunctionSpace, TrialFunction, TestFunction
+from dolfin import Function, FunctionSpace, TrialFunction, TestFunction, project
 from dolfin import Measure, inner, nabla_grad, assemble
 from dolfin import solve, plot
 # REFERENCE = sp.io.loadmat("data/TrainingData/ref.mat")
@@ -51,20 +53,35 @@ def create_disk_mesh(radius, electrode_count, polygons = 300, fineness = 50):
 
 
 class FenicsForwardModel:
-    # TODO: Verify that the mesh representation is correct
-    def _characteristic_function(self, mesh, n):
-        H = self._interior_potential_space()
-        C = FunctionSpace(mesh, "DG", 0)
+    def _basis(self, n, W, H):
+        # TODO: Verify that the mesh representation is correct
         
-        print(C.dim())
-        #chi = Function(C)
+        en = np.zeros(W.dim())
+        en[n] = 1.0
         
-        #chi.vector().set_local()
+        chi = Function(W)
+        chi.set_allow_extrapolation(True)
+        chi.vector().set_local(en)
+        proj_chi = project(chi,H)
+        # proj_chi = proj_chi.vector().set_local(np.around(proj_chi.vector().get_local()))
+        # TODO: Verify difference is insignificant
+        return proj_chi
+
+    def _compute_coefficients(self, u, W, H):
+        N = W.dim()
+        J = len(u)
         
-        #chi.vector().set
+        dx = self._domain_measure()
+        coeffs = np.zeros((J,J,N))
+        for n in range(N):
+            print("Compute coefficient n=%d"%(n))
+            for (i,j) in product(range(J),range(J)):
+                chi = self._basis(n, W, H)
+                integrand = inner(nabla_grad(u[i]),nabla_grad(u[j]))*chi
+                coeffs[i,j,n] = assemble(integrand*dx)
+                
+        return coeffs
         
-        
-    
     def __init__(self, mesh, subdomains, electrode_count, impedance, conductivity):
         self.mesh = mesh
         self.subdomains = subdomains
@@ -96,7 +113,8 @@ class FenicsForwardModel:
         y, Y = self._solve(L)
         return y, Y
     
-    def gradient(self, mesh):
+    def gradient(self, W):
+        H = self._interior_potential_space()
         
         pass
     
