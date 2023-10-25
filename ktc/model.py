@@ -42,22 +42,22 @@ def create_disk_mesh(radius, electrode_count, polygons = 300, fineness = 50):
 
 
 class FenicsForwardModel:
-    def _mark_partitions(self, reconstruction_mesh):
+    def _mark_partitions(self, recon_mesh):
         class Partition(SubDomain):
-            def __init__(self, reconstruction_mesh, cell_index):
+            def __init__(self, recon_mesh, cell_index):
                     super().__init__()
                     self.cell_index = cell_index
-                    self.reconstruction_mesh
+                    self.recon_mesh = recon_mesh
                     
             def inside(self, x, _):
                 point = Point(x)
-                cell = Cell(self.reconstruction_mesh, self.cell_index)
+                cell = Cell(self.recon_mesh, self.cell_index)
                 return cell.contains(point)
 
         topology = self.mesh.topology()
         subdomains = MeshFunction('size_t', self.mesh, dim=topology.dim())
-        for i in range(reconstruction_mesh.num_cells()):
-            partition = Partition(i)
+        for i in range(recon_mesh.num_cells()):
+            partition = Partition(recon_mesh, i)
             partition.mark(subdomains, i)
             
         return subdomains
@@ -76,18 +76,19 @@ class FenicsForwardModel:
         # TODO: Verify difference is insignificant
         return proj_chi
 
-    def _compute_coefficients(self, u, W, H):
-        N = W.dim()
+    def _compute_coefficients(self, recon_mesh, u):
+        N = recon_mesh.num_cells()
         J = len(u)
         
-        dx = self._domain_measure()
+        subdomains = self._mark_partitions(recon_mesh)
+        dx = Measure("dx", self.mesh, subdomain_data=subdomains)
+        
         coeffs = np.zeros((J,J,N))
         for n in range(N):
             print("Compute coefficient n=%d"%(n))
             for (i,j) in product(range(J),range(J)):
-                chi = self._basis(n, W, H)
-                integrand = inner(nabla_grad(u[i]),nabla_grad(u[j]))*chi
-                coeffs[i,j,n] = assemble(integrand*dx)
+                integrand = inner(nabla_grad(u[i]),nabla_grad(u[j]))
+                coeffs[i,j,n] = assemble(integrand*dx(n))
                 
         return coeffs
         
@@ -122,7 +123,7 @@ class FenicsForwardModel:
         y, Y = self._solve(L)
         return y, Y
     
-    def gradient(self, W):
+    def gradient(self, recon_mesh):
         H = self._interior_potential_space()
         
         pass
