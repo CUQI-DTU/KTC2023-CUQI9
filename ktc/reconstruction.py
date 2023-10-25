@@ -2,7 +2,9 @@ import numpy as np
 from itertools import product
 
 from ktc.model import FenicsForwardModel
+from ktc.smprior import SMPrior
 from dolfin import Function, plot
+
 class SeriesReversion:
     # Current injections: each row is a unique injection pattern
     def __init__(self, model, recon_mesh, current_injections, W):
@@ -35,12 +37,23 @@ class SeriesReversion:
             blocks.append(P_list)
 
         return np.block(blocks).T
+    
+    def _smoothingPrior(self):
+        sigma0 = np.ones((self.recon_mesh.num_vertices(), 1)) #linearization point
+        corrlength = 1 * 0.115 #used in the prior
+        var_sigma = 0.05 ** 2 #prior variance
+        mean_sigma = sigma0
+        
+        
+        smprior = SMPrior(self.recon_mesh, corrlength, var_sigma, mean_sigma)
+        return smprior.L
         
     def reconstruct(self, voltages):
         J = self.gradient
-    
-        F1, _, _, _ = np.linalg.lstsq(J, (voltages - self.U).flatten(order = "F"))
 
+        L = self._smoothingPrior()
+        # F1, _, _, _ = np.linalg.lstsq(J, (voltages - self.U).flatten(order = "F"))
+        F1 = np.linalg.solve(J.T@J + L.T@L, J.T@(voltages - self.U).flatten(order = "F"))
         # u, _ = self.model.solve(current_injections)
 
         # h = -self.model.poisson(F1, current_injections, u)
