@@ -5,21 +5,10 @@ import matplotlib.pyplot as plt
 from itertools import product
 
 from mshr import *
-from dolfin import Point, SubDomain, MeshFunction, XDMFFile
-from dolfin import Function, FunctionSpace, TrialFunction, TestFunction, project
-from dolfin import Measure, inner, nabla_grad, assemble
+from dolfin import Point, SubDomain, Cell
+from dolfin import Function, FunctionSpace, MeshFunction, TrialFunction, TestFunction
+from dolfin import Measure, inner, nabla_grad, assemble, project
 from dolfin import solve, plot
-# REFERENCE = sp.io.loadmat("data/TrainingData/ref.mat")
-# CURRENT_INJECTIONS = REFERENCE["Injref"]
-# DATA = sorted(glob.glob("data/TrainingData/data*.mat"))
-# # DATA = sp.io.loadmat("data/TrainingData/data*.mat")
-# TRUTH = sorted(glob.glob("data/GroundTruths/true*.mat"))
-
-# radius = 1
-# electrode_count = 32
-# electrode_width = np.pi / electrode_count
-# phase = np.pi / 2
-
 
 def create_disk_mesh(radius, electrode_count, polygons = 300, fineness = 50):
     center = Point(0, 0)
@@ -53,6 +42,26 @@ def create_disk_mesh(radius, electrode_count, polygons = 300, fineness = 50):
 
 
 class FenicsForwardModel:
+    def _mark_partitions(self, reconstruction_mesh):
+        class Partition(SubDomain):
+            def __init__(self, reconstruction_mesh, cell_index):
+                    super().__init__()
+                    self.cell_index = cell_index
+                    self.reconstruction_mesh
+                    
+            def inside(self, x, _):
+                point = Point(x)
+                cell = Cell(self.reconstruction_mesh, self.cell_index)
+                return cell.contains(point)
+
+        topology = self.mesh.topology()
+        subdomains = MeshFunction('size_t', self.mesh, dim=topology.dim())
+        for i in range(reconstruction_mesh.num_cells()):
+            partition = Partition(i)
+            partition.mark(subdomains, i)
+            
+        return subdomains
+    
     def _basis(self, n, W, H):
         # TODO: Verify that the mesh representation is correct
         
@@ -186,19 +195,3 @@ class FenicsForwardModel:
         u = Function(H)
         u.vector().set_local(x[:-(self.electrode_count+1)])
         return u, U
-
-# mesh, subdomains = create_disk_mesh(radius, 32, 300, 50)
-# dx = _domain_measure(mesh)
-# ds = _boundary_measure(mesh, subdomains)
-# solution_space = _solution_space(mesh, electrode_count)
-# a = _bilinear_form(solution_space, dx, ds, electrode_count, 1.0, np.full(electrode_count,1e-6))
-# L = _rhs(solution_space, dx, ds, electrode_count, CURRENT_INJECTIONS[:,0])
-
-# v,V = _solve(solution_space, a, L, mesh)
-# print(v.vector().get_local().shape)
-# print(len(mesh.coordinates()))
-# plot(v)
-# plt.show()
-
-# xdmf = XDMFFile("subdomains.xdmf")
-# xdmf.write(subdomains)
