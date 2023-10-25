@@ -62,7 +62,7 @@ class FenicsForwardModel:
             
         return subdomains
     
-    def _basis(self, n, W, H):
+    def basis(self, n, W):
         # TODO: Verify that the mesh representation is correct
         
         en = np.zeros(W.dim())
@@ -71,6 +71,7 @@ class FenicsForwardModel:
         chi = Function(W)
         chi.set_allow_extrapolation(True)
         chi.vector().set_local(en)
+        H = self._interior_potential_space()
         proj_chi = project(chi,H)
         # proj_chi = proj_chi.vector().set_local(np.around(proj_chi.vector().get_local()))
         # TODO: Verify difference is insignificant
@@ -122,11 +123,6 @@ class FenicsForwardModel:
         L = inner(nabla_grad(y), nabla_grad(v))*pertubation*dx
         y, Y = self._solve(L)
         return y, Y
-    
-    def gradient(self, recon_mesh):
-        H = self._interior_potential_space()
-        
-        pass
     
     def _gradient_inner_product(self, u, v, B):
         dx = self._domain_measure()
