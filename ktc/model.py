@@ -114,7 +114,7 @@ class FenicsForwardModel:
 
         return self._solve(L)
     
-    def solve_P(self, pertubation, y):
+    def solve_pertubation(self, pertubation, y):
         dx = self._domain_measure()
         
         (v, _, *V) = TestFunction(self.solution_space)

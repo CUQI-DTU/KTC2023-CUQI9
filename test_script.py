@@ -24,8 +24,10 @@ for idx, fileName in enumerate(DATA_FILES):
     impedance = np.full(electrode_count, 1e-6)
     radius = 1
     
-    mesh, subdomains = create_disk_mesh(radius, electrode_count, polygons=300, fineness=2)
+    mesh, subdomains = create_disk_mesh(radius, electrode_count, polygons=300, fineness=50)
     forward_model = FenicsForwardModel(mesh, subdomains,electrode_count, impedance, background_conductivity)
+    plot(mesh)
+    plt.show()
     
     boundary_gap = 0.1
     reconstruction_mesh, _ = create_disk_mesh(radius - boundary_gap, electrode_count, polygons=5, fineness=1)
@@ -33,8 +35,9 @@ for idx, fileName in enumerate(DATA_FILES):
     W = FunctionSpace(mesh, "DG", 0)
     series_reversion = SeriesReversion(forward_model, reconstruction_mesh, CURRENT_INJECTIONS, W)
     
-    H = forward_model._interior_potential_space()
-    coeffs = forward_model._compute_coefficients(series_reversion.u, W, H)
+
+    # H = forward_model._interior_potential_space()
+    # coeffs = forward_model._compute_coefficients(reconstruction_mesh, series_reversion.u)
     # print(coeffs)
     # chi = forward_model._basis(5,W,H)
     # print(chi)
