@@ -73,6 +73,7 @@ v_list = myeit.solve_adjoint(q_list, phantom_float, Uel_ref)
 
 #%%
 H1 = FunctionSpace(myeit.mesh, 'CG', 1)
+
 h_func = Function(H1)
 plot_v = False
 if plot_v:
@@ -85,6 +86,36 @@ if plot_v:
 
 #%% Compute gradient 
 grad = myeit.evaluate_gradient(q_list, v_list)
+
+first_order_approx = []
+second_order_approx = []
+adjoint_gradient = []
+for eps in [ 1e-3]:
+    # Compare gradient with finite difference
+    j_index = 0
+    J_sigma = myeit.evaluate_target_functional(q_list, Uel_ref)
+    H0 = FunctionSpace(myeit.mesh, 'DG', 0)
+    sigma_perturb = interpolate(myeit.inclusion, H0)
+    sigma_perturb.vector()[j_index] += eps
+    Uel_sim_pert, Q_pert, q_list_pert = myeit.solve_forward(Imatr, sigma_perturb, num_inj_tested)
+    
+    #sigma_perturb_minus = interpolate(myeit.inclusion, H0)
+    #sigma_perturb_minus.vector()[j_index] -= eps
+    #Uel_sim_pert_minus, Q_pert_minus, q_list_pert_minus = myeit.solve_forward(Imatr, sigma_perturb_minus, num_inj_tested)
+    
+    J_sigma_pert = myeit.evaluate_target_functional(q_list_pert, Uel_ref)
+
+    #J_sigma_pert_minus = myeit.evaluate_target_functional(q_list_pert_minus, Uel_ref)
+    
+    first_order_approx.append((J_sigma_pert - J_sigma)/eps)
+    print(first_order_approx[-1])
+
+    #second_order_approx.append((J_sigma_pert - J_sigma_pert_minus)/(2*eps))
+    #print(second_order_approx[-1])
+
+    adjoint_gradient.append(grad.vector()[j_index])
+    print(adjoint_gradient[-1])
+    
 
 #%%
 grad.vector().set_local(grad.vector().get_local())

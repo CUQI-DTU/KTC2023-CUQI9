@@ -90,7 +90,14 @@ class  EITFenics:
         self.inclusion = Inclusion(phantom, degree=0)
 
     def solve_forward(self, injection_patterns, phantom=None, num_inj_tested=None):
-        self._create_inclusion(phantom)
+
+        # phantom can be FEniCS function
+        if not isinstance(phantom, np.ndarray): 
+            self.inclusion = phantom
+        # phantom can be numpy array
+        elif phantom is not None:
+                self._create_inclusion(phantom)
+
         L = self.L
 
         # Define H1 room
@@ -99,20 +106,21 @@ class  EITFenics:
         # Loop over current patterns
         num_inj = 76  # Number of injection pattern
         # num_inj_tested = 76
+
         B = self.B_background if phantom is None else self.build_b(self.inclusion, self.V, self.dS, L)
 
         Q = np.zeros((L, num_inj))
         Diff = np.zeros((L-1, num_inj))
         q_list = []
-
+        print("solve forward")
         for i in range(num_inj)[:num_inj_tested]:
-            print("injection pattern"+str(i))
+            #print("injection pattern"+str(i))
             Q_i, q = self.solver(injection_patterns[:, i], B, self.V, self.dS, L)
             q_list.append(q)
 
             Q[:, i] = Q_i
             Diff[:, i] = np.diff(Q_i)
-
+        print("end solve forward")
         Uel_sim = -Diff.flatten(order='F')
         return Uel_sim, Q, q_list
     
@@ -150,11 +158,21 @@ class  EITFenics:
         for i, (q, v) in enumerate(zip(q_list, v_list)):
             grad.vector().axpy( 1, assemble(sigma * inner(nabla_grad(q[L]), nabla_grad(v[L]))*dx ))
             print(i)
-            plt.figure()
-            plt.plot( assemble(sigma * inner(nabla_grad(q[L]), nabla_grad(v[L]))*dx )[:100])
+            #plt.figure()
+            #plt.plot( assemble(sigma * inner(nabla_grad(q[L]), nabla_grad(v[L]))*dx )[:100])
         
         return grad
         
+    def evaluate_target_functional(self, q_list, u_measure):
+
+        L = self.L
+        J = 0
+
+        for i, q in enumerate(q_list):
+            J +=0.5 * np.linalg.norm(self.D_sub@q.vector().get_local()[:L] - u_measure[i*(L-1):(i+1)*(L-1)] )**2
+
+        return J
+
 
     def solve_P(self, y_list, sigma_perturb):
         L = self.L
