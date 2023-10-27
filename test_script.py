@@ -16,16 +16,17 @@ from fenics import set_log_level
 WARNING = 30
 set_log_level(WARNING)
 
-REFERENCE = sp.io.loadmat("data/TrainingData/ref.mat")
-CURRENT_INJECTIONS = REFERENCE["Injref"].T
+REFERENCE_DICT = sp.io.loadmat("data/TrainingData/ref.mat")
+CURRENT_INJECTIONS = REFERENCE_DICT["Injref"].T
 DATA_FILES = sorted(glob.glob("data/TrainingData/data1.mat"))
 TRUTH_FILES = sorted(glob.glob("data/GroundTruths/true*.mat"))
 
 for idx, fileName in enumerate(DATA_FILES):
     matdict = sp.io.loadmat(fileName)
     data = DataReader(matdict)
-    # TRUTH = sp.io.loadmat(    "data/GroundTruths/true" + idx + ".mat")
-
+    data_reference = DataReader(REFERENCE_DICT)
+    # TRUTH = sp.io.loadmat("data/GroundTruths/true" + idx + ".mat")
+    
     background_conductivity = 0.8
     electrode_count = 32
     impedance = np.full(electrode_count, 1e-6)
@@ -44,10 +45,8 @@ for idx, fileName in enumerate(DATA_FILES):
     )
 
     W = FunctionSpace(reconstruction_mesh, "DG", 0)
-    series_reversion = SeriesReversion(
-        forward_model, reconstruction_mesh, CURRENT_INJECTIONS, W
-    )
-
+    series_reversion = SeriesReversion(forward_model, reconstruction_mesh, data.current_injections, W, data_reference.voltages)
+ 
     F = series_reversion.reconstruct(data.voltages)
     p = series_reversion.solution_plot(F)
     plt.colorbar(p)

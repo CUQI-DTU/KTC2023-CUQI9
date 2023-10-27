@@ -5,12 +5,12 @@ from ktc.model import FenicsForwardModel
 from ktc.smprior import SMPrior
 from dolfin import Function, plot
 
-
 class SeriesReversion:
     # Current injections: each row is a unique injection pattern
-    def __init__(self, model, recon_mesh, current_injections, W):
+    def __init__(self, model, recon_mesh, current_injections, W, voltages_ref):
         self.model = model
         self.recon_mesh = recon_mesh
+        self.voltages_ref = np.reshape(voltages_ref, order = "F")
 
         self.u = []
         self.U = []
@@ -57,7 +57,7 @@ class SeriesReversion:
         L = self._smoothingPrior()
         # F1, _, _, _ = np.linalg.lstsq(J, (voltages - self.U).flatten(order = "F"))
         F1 = np.linalg.solve(
-            J.T @ J + L.T @ L, J.T @ (voltages - self.U).flatten(order="F")
+            J.T @ J + L.T @ L, J.T @ (voltages - self.voltages_ref).flatten(order="F")
         )
         # u, _ = self.model.solve(current_injections)
 
