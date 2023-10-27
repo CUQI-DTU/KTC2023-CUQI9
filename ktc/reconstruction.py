@@ -10,7 +10,7 @@ class SeriesReversion:
     def __init__(self, model, recon_mesh, current_injections, W, voltages_ref):
         self.model = model
         self.recon_mesh = recon_mesh
-        self.voltages_ref = np.reshape(voltages_ref, order = "F")
+        self.voltages_ref = voltages_ref
 
         self.u = []
         self.U = []
