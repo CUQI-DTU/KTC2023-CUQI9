@@ -123,9 +123,10 @@ class FenicsForwardModel:
 
         (v, _, *V) = TestFunction(self.solution_space)
 
-        L = inner(nabla_grad(y), nabla_grad(v)) * pertubation * dx
-        y, Y = self._solve(L)
-        return y, Y
+        f = inner(nabla_grad(y), nabla_grad(v)) * pertubation * dx
+        
+        L = assemble(f)
+        return self._solve(L)
 
     def _gradient_inner_product(self, u, v, B):
         dx = self._domain_measure()
