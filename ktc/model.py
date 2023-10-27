@@ -110,11 +110,12 @@ class FenicsForwardModel:
 
         (_, _, *V) = TestFunction(self.solution_space)
 
-        L = 0 * ds
+        f = 0 * ds(0)
         for i in range(self.electrode_count):
             area = assemble(1 * ds(i + 1))
-            L += (current_injection[i] * V[i] / area) * ds(i + 1)
-
+            f += (current_injection[i] * V[i] / area) * ds(i + 1)
+            
+        L = assemble(f)
         return self._solve(L)
 
     def solve_pertubation(self, pertubation, y):
@@ -167,7 +168,7 @@ class FenicsForwardModel:
             area = assemble(1 * ds(i + 1))
             a += (q * U[i] + p * V[i]) / area * ds(i + 1)
 
-        return a
+        return assemble(a)
 
     def _rhs(self, current_injection, F=0):
         (_, _, *V) = TestFunction(self.solution_space)
@@ -179,11 +180,11 @@ class FenicsForwardModel:
             area = assemble(1 * ds(i + 1))
             L += (current_injection[i] * V[i] / area) * ds(i + 1)
 
-        return L
+        return assemble(L)
 
     def _solve(self, rhs):
         w = Function(self.solution_space)
-        solve(self.a == rhs, w)
+        solve(self.a, w.vector(), rhs)
 
         x = w.vector().get_local()
         U = x[-self.electrode_count :]
