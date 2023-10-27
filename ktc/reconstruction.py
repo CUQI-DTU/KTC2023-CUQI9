@@ -22,7 +22,15 @@ class SeriesReversion:
         # TODO: Solve using lsq (and verify it is correct)
         self.dual_frame = np.linalg.solve(current_injections @ current_injections.T,current_injections)
         self.W = W
-        self.gradient = self._gradient()
+        gradient_file_name = "ktc/gradient_cache/grad_"+str(recon_mesh)+".py"
+        try: 
+            with open(gradient_file_name) as f:
+                self.gradient = np.load(f)
+        except OSError as error:
+            print("Generating new gradient")
+            self.gradient = self._gradient()
+            with open(gradient_file_name) as f:
+                np.save(f, self.gradient)
         
     def _gradient(self):
         N = self.recon_mesh.num_cells()
