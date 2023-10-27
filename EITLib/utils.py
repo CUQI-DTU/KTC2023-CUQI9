@@ -89,6 +89,18 @@ class  EITFenics:
 
         self.inclusion = Inclusion(phantom, degree=0)
 
+    def evalute_target_external(self, injection_patterns, sigma_values, u_measure, grad, num_inj_tested=None):
+        print("* evaluate_target_external called")
+        self.inclusion = Function(self.H_sigma)
+        self.inclusion.vector().set_local(sigma_values)
+        Uel_sim, Q, q_list = self.solve_forward(injection_patterns, self.inclusion, num_inj_tested)
+
+        if grad.size > 0:
+            v_list = self.solve_adjoint(q_list, self.inclusion, u_measure)
+            grad[:] = self.evaluate_gradient(q_list, v_list).vector()[:]
+
+        return self.evaluate_target_functional(q_list, u_measure)
+
     def solve_forward(self, injection_patterns, phantom=None, num_inj_tested=None):
 
         # phantom can be FEniCS function
@@ -125,7 +137,14 @@ class  EITFenics:
         return Uel_sim, Q, q_list
     
     def solve_adjoint(self, q_list, phantom, u_measure):
-        self._create_inclusion(phantom)
+
+        # phantom can be FEniCS function
+        if not isinstance(phantom, np.ndarray): 
+            self.inclusion = phantom
+        # phantom can be numpy array
+        elif phantom is not None:
+                self._create_inclusion(phantom)
+
         L = self.L
 
         # Define H1 room
@@ -134,14 +153,14 @@ class  EITFenics:
         B_transpose = self.build_b_adjoint(self.inclusion, self.V, self.dS, L)
 
         v_list = []
-
+        print("solve adjoint")
         for i, q in enumerate(q_list):
             rhs_sub =-self.D_sub.T@(self.D_sub@q.vector().get_local()[:L] - u_measure[i*(L-1):(i+1)*(L-1)] )
             rhs = Function(self.V).vector()
 
             rhs.set_local(np.concatenate((rhs_sub, np.zeros(self.V.dim()-L))))
 
-            print("injection pattern"+str(i))
+            # print("injection pattern"+str(i))
             v = Function(self.V)
             solve(B_transpose, v.vector(), rhs)
             v_list.append(v)
@@ -157,7 +176,7 @@ class  EITFenics:
         sigma = TestFunction(self.H_sigma)
         for i, (q, v) in enumerate(zip(q_list, v_list)):
             grad.vector().axpy( 1, assemble(sigma * inner(nabla_grad(q[L]), nabla_grad(v[L]))*dx ))
-            print(i)
+            # print(i)
             #plt.figure()
             #plt.plot( assemble(sigma * inner(nabla_grad(q[L]), nabla_grad(v[L]))*dx )[:100])
         
