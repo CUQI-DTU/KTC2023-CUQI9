@@ -110,7 +110,7 @@ class FenicsForwardModel:
 
         (_, _, *V) = TestFunction(self.solution_space)
 
-        f = 0 * ds(0)
+        f = 0 * ds
         for i in range(self.electrode_count):
             area = assemble(1 * ds(i + 1))
             f += (current_injection[i] * V[i] / area) * ds(i + 1)
