@@ -14,7 +14,7 @@ class DataReader:
         self.voltages = self._undifference(voltage_diff)
         
     def _undifference(self, voltage_differences):
-        cumsum = np.cumsum(voltage_differences, axis=1)
+        cumsum = -np.cumsum(voltage_differences, axis=1)
         u = np.hstack([np.zeros((self.injection_count,1)), cumsum])
         u = u - np.mean(u, axis=1)[:,np.newaxis]
         return u
