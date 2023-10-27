@@ -41,7 +41,8 @@ for idx, fileName in enumerate(DATA_FILES):
     series_reversion = SeriesReversion(forward_model, reconstruction_mesh, CURRENT_INJECTIONS, W)
  
     F = series_reversion.reconstruct(data.voltages)
-    series_reversion.solution_plot(F)
+    p = series_reversion.solution_plot(F)
+    plt.colorbar(p)
     now = datetime.now()
     file_name = now.strftime("%d_time_%H_%M.png")
     plt.savefig(file_name)
