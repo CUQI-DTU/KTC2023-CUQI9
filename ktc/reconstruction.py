@@ -68,4 +68,4 @@ class SeriesReversion:
     def solution_plot(self, pertubation):
         f = Function(self.W)
         f.vector().set_local(pertubation)
-        plot(f)
+        return plot(f)
