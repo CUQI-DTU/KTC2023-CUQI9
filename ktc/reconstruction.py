@@ -17,22 +17,18 @@ class SeriesReversion:
            ui, Ui = self.model.solve_forward(current_injection)
            self.u.append(ui)
            self.U.append(Ui)
-            
-        # Construct conoical dual frame
-        # TODO: Solve using lsq (and verify it is correct)
-        self.dual_frame = np.linalg.solve(current_injections @ current_injections.T,current_injections)
+
         self.W = W
-        gradient_file_name = "ktc/gradient_cache/grad_"+str(recon_mesh)+".py"
+        gradient_file_name = "ktc/cache/grad_"+str(recon_mesh.num_cells())+".txt"
         try: 
-            with open(gradient_file_name) as f:
-                self.gradient = np.load(f)
+            self.gradient = np.loadtxt(gradient_file_name)
         except OSError as error:
             print("Generating new gradient")
             self.gradient = self._gradient()
-            with open(gradient_file_name) as f:
-                np.save(f, self.gradient)
+            np.savetxt(gradient_file_name, self.gradient)
         
     def _gradient(self):
+        return np.zeros(1)
         N = self.recon_mesh.num_cells()
         
         blocks = []
