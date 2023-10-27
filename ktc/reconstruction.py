@@ -28,7 +28,6 @@ class SeriesReversion:
             np.savetxt(gradient_file_name, self.gradient)
         
     def _gradient(self):
-        return np.zeros(1)
         N = self.recon_mesh.num_cells()
         
         blocks = []
