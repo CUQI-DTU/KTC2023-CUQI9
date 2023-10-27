@@ -15,7 +15,7 @@ class SMPrior:
     def _cell_center(self, cell):
         # TODO: Verify unpacking is correct
         x1,x2,y1,y2,z1,z2 = cell.get_vertex_coordinates()
-        return (np.array([x1,x2]) + np.array([y1,y2]) + np.array([z1,z2]))/2
+        return (np.array([x1,x2]) + np.array([y1,y2]) + np.array([z1,z2]))/3
         
     def compute_L(self, mesh, corrlength, var):
         g = [self._cell_center(cell) for cell in cells(mesh)]
