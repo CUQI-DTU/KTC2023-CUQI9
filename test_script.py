@@ -33,7 +33,7 @@ for idx, fileName in enumerate(DATA_FILES):
     radius = 1
 
     mesh, subdomains = create_disk_mesh(
-        radius, electrode_count, polygons=200, fineness=20
+        radius, electrode_count, polygons=300, fineness=50
     )
     forward_model = FenicsForwardModel(
         mesh, subdomains, electrode_count, impedance, background_conductivity
@@ -41,7 +41,7 @@ for idx, fileName in enumerate(DATA_FILES):
 
     boundary_gap = 0.1
     reconstruction_mesh, _ = create_disk_mesh(
-        radius - boundary_gap, electrode_count, polygons=50, fineness=7
+        radius - boundary_gap, electrode_count, polygons=200, fineness=20
     )
 
     W = FunctionSpace(reconstruction_mesh, "DG", 0)
