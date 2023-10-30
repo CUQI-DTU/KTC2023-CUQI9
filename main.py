@@ -1,7 +1,16 @@
 import argparse
+import glob
+
+import numpy as np
+import scipy as sp
+
+electrode_count = 32
+contact_impedance = np.full(electrode_count, 1e-6)
+background_conductivity = 0.8
 
 
 def main():
+    # TODO: Add help text
     parser = argparse.ArgumentParser()
     parser.add_argument("input_folder")
     parser.add_argument("output_folder")
