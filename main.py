@@ -1,4 +1,5 @@
 import argparse
+import configparser
 import glob
 
 import numpy as np
@@ -10,16 +11,19 @@ background_conductivity = 0.8
 
 
 def main():
+    cfg = configparser.ConfigParser()
+    cfg.read("config.ini")
+
     # TODO: Add help text
     parser = argparse.ArgumentParser()
     parser.add_argument("input_folder")
     parser.add_argument("output_folder")
     parser.add_argument("category", type=int)
-    parser.add_argument("-p", "--pattern", default="/data*.mat")
-    parser.add_argument("-r", "--reference", default="/ref.mat")
+    parser.add_argument("-p", "--pattern", default=cfg["default"]["pattern"])
+    parser.add_argument("-r", "--reference", default=cfg["default"]["reference"])
     args = parser.parse_args()
 
-    # TODO: Fix stupid appending "/data*.mat"
+
     files = glob.glob(args.input_folder + args.pattern)
     for idx, path in enumerate(files):
         input = sp.io.loadmat(path)
