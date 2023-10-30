@@ -15,13 +15,20 @@ def main():
     parser.add_argument("input_folder")
     parser.add_argument("output_folder")
     parser.add_argument("category", type=int)
+    parser.add_argument("-p", "--pattern", default="/data*.mat")
+    parser.add_argument("-r", "--reference", default="/ref.mat")
     args = parser.parse_args()
 
     # TODO: Fix stupid appending "/data*.mat"
-    files = glob.glob(args.input_folder + "/data*.mat")
-    files = sorted(files)
+    files = glob.glob(args.input_folder + args.pattern)
     for idx, path in enumerate(files):
-        mat = sp.io.loadmat(path)
+        input = sp.io.loadmat(path)
+
+        # TODO: Reconstruct from data
+
+        # TODO: Use regex to exact data_x.math
+        output = input
+        sp.io.savemat(args.output_folder + ("/%d.mat" % (idx + 1)), output)
 
 
 if __name__ == "__main__":
