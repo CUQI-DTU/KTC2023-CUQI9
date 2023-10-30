@@ -5,6 +5,8 @@ import glob
 import numpy as np
 import scipy as sp
 
+from ktc.data import Data, Reference
+
 cfg = configparser.ConfigParser()
 cfg.read("config.ini")
 
@@ -27,17 +29,20 @@ def main():
 
     args = parser.parse_args()
 
-    # TODO: Load reference data
+    # Load the reference data
+    refmat = sp.io.loadmat(args.input_folder + args.reference)
+    reference = Reference(refmat)
 
     files = glob.glob(args.input_folder + args.pattern)
     for idx, path in enumerate(files):
-        input = sp.io.loadmat(path)
+        inmat = sp.io.loadmat(path)
+        data = Data(inmat)
 
         # TODO: Reconstruct from data
 
         # TODO: Use regex to exact data_x.math
-        output = input
-        sp.io.savemat(args.output_folder + ("/%d.mat" % (idx + 1)), output)
+        outmat = inmat
+        sp.io.savemat(args.output_folder + ("/%d.mat" % (idx + 1)), outmat)
 
 
 if __name__ == "__main__":
