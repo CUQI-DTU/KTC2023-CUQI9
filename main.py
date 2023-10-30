@@ -23,6 +23,7 @@ def main():
     parser.add_argument("-r", "--reference", default=cfg["default"]["reference"])
     args = parser.parse_args()
 
+    # TODO: Load reference data
 
     files = glob.glob(args.input_folder + args.pattern)
     for idx, path in enumerate(files):
