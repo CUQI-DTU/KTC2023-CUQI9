@@ -92,7 +92,7 @@ if plot_v:
 mysigma = interpolate(myeit.inclusion, myeit.H_sigma)
 sigma_values = mysigma.vector()[:]
 sigma_values = np.ones(myeit.mesh.num_cells())
-myeit.evalute_target_external(Imatr, sigma_values, Uel_ref)
+myeit.evaluate_target_functional(q_list, Uel_ref)
 
 #%% Compute gradient 
 grad = myeit.evaluate_gradient(q_list, v_list)
