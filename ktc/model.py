@@ -117,12 +117,17 @@ class FenicsForwardModel:
     def solve_forward(self, current_injection):
         ds = self._boundary_measure()
 
-        (_, _, *V) = TestFunction(self.solution_space)
+        (_, *V) = TestFunction(self.solution_space)
 
         L = 0 * ds
-        for i in range(self.electrode_count):
+        for i in range(1, self.electrode_count):
             area = assemble(1 * ds(i + 1))
             L += (current_injection[i] * V[i] / area) * ds(i)
+
+
+        area = assemble(1 * ds(0 + 1))
+        for i in range(1, self.electrode_count):
+            L -= (current_injection[0] * V[i] / area) * ds(0 + 1)
 
         return self._solve(self.a, L)
 
@@ -140,7 +145,7 @@ class FenicsForwardModel:
         R = FunctionSpace(self.mesh, "R", 0)
 
         mixed = H.ufl_element()
-        for i in range(self.electrode_count + 1):
+        for i in range(self.electrode_count - 1):
             mixed *= R.ufl_element()
 
         return FunctionSpace(self.mesh, mixed)
@@ -158,20 +163,34 @@ class FenicsForwardModel:
 
     def _bilinear_form(self):
         # Define trial and test functions
-        (u, p, *U) = TrialFunction(self.solution_space)
-        (v, q, *V) = TestFunction(self.solution_space)
+        (u, *U) = TrialFunction(self.solution_space)
+        (v, *V) = TestFunction(self.solution_space)
 
         dx = self._domain_measure()
         ds = self._boundary_measure()
-        a = self.sigma * inner(nabla_grad(u), nabla_grad(v)) * dx
+
+        # Construct system matrix a = [B, C; C^T, G]
+        # Make B component
+        B = self.sigma * inner(nabla_grad(u), nabla_grad(v)) * dx
         for i in range(self.electrode_count):
-            a += 1 / self.z[i] * (u - U[i]) * (v - V[i]) * ds(i)
+            B += 1 / self.z[i] * u * v * ds(i + 1)
 
-            # Enforce mean free electrode potentials
-            area = assemble(1 * ds(i + 1))
-            a += (q * U[i] + p * V[i]) / area * ds(i)
+        # Make C component
+        C = 0 * dx
+        for i in range(1, self.electrode_count):
+            C += 1 / self.z[0] * (u * V[i] + v * U[i]) * ds(0 + 1)
+            C -= 1 / self.z[i] * (u * V[i] + v * U[i]) * ds(i + 1)
 
-        return a
+        # Make G component
+        G = 0 * dx
+        for i in range(1, self.electrode_count):
+            G += 1 / self.z[i] * (U[i] * V[i]) * ds(i + 1)
+            for j in range(1, self.electrode_count):
+                G += 1 / self.z[0] * (U[i] * V[j]) * ds(0 + 1)
+
+        A = B + C + G
+
+        return A
 
     def _solve(self, a, L):
         w = Function(self.solution_space)
@@ -183,5 +202,5 @@ class FenicsForwardModel:
         # TODO: Find better way to split mixed function
         H = self._interior_potential_space()
         u = Function(H)
-        u.vector().set_local(x[: -(self.electrode_count + 1)])
+        u.vector().set_local(x[: -(self.electrode_count - 1)])
         return u, U
