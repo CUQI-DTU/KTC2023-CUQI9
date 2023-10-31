@@ -43,6 +43,15 @@ class SMPrior:
         sigma = args[0]
         res = 0.5 * np.linalg.norm(self.L @ (sigma - self.mean))**2
         return res
+    
+    def evaluate_target_external(self, x, compute_grad=False):
+        if compute_grad:
+            grad = self.L.T @ self.L @ (x - self.mean)
+        else:
+            grad = None
+        
+        return self.eval_fun(x), grad
+        
 
     def compute_hess_and_grad(self, args, nparam):
         sigma = args[0]

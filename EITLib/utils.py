@@ -88,17 +88,20 @@ class  EITFenics:
 
         self.inclusion = Inclusion(phantom, degree=0)
 
-    def evalute_target_external(self, injection_patterns, sigma_values, u_measure, grad, num_inj_tested=None):
+    def evaluate_target_external(self, injection_patterns, sigma_values, u_measure, compute_grad=None, num_inj_tested=None):
         print("* evaluate_target_external called")
         self.inclusion = Function(self.H_sigma)
         self.inclusion.vector().set_local(sigma_values)
-        Uel_sim, Q, q_list = self.solve_forward(injection_patterns, self.inclusion, num_inj_tested)
+        _, _, q_list = self.solve_forward(injection_patterns, self.inclusion, num_inj_tested)
 
-        if grad.size > 0:
+        if compute_grad:
             v_list = self.solve_adjoint(q_list, self.inclusion, u_measure)
-            grad[:] = self.evaluate_gradient(q_list, v_list).vector()[:]
+            grad = self.evaluate_gradient(q_list, v_list).vector()[:]
+        else:
+            grad = None
+        
+        return self.self.evaluate_target_functional(q_list, u_measure), grad
 
-        return self.evaluate_target_functional(q_list, u_measure)
 
     def solve_forward(self, injection_patterns, phantom=None, num_inj_tested=None):
 

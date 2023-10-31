@@ -4,6 +4,7 @@ from matplotlib import pyplot as plt
 from utils import *
 import scipy.io as io
 import nlopt
+from KTCRegularization import SMPrior
 
 # %% set up data
 case_name = 'case1'  # 'case1' , case3', 'case4', 'case_ref'
@@ -52,8 +53,10 @@ phantom_float[phantom == 2] = high_conductivity
 
 # %% build eit-fenics model
 L = 32
-F = 30
-myeit = EITFenics(L, F, background_conductivity=background_conductivity)
+mesh = Mesh()
+with XDMFFile("../mesh_file_32_300.xdmf") as infile:
+    infile.read(mesh)
+myeit = EITFenics(mesh=mesh, L=L, background_conductivity=background_conductivity)
 # #%%
 # mysigma = interpolate(myeit.inclusion, myeit.H_sigma)
 # sigma_values = mysigma.vector()[:]
@@ -61,6 +64,21 @@ myeit = EITFenics(L, F, background_conductivity=background_conductivity)
 # myeit.evalute_target_external(Imatr, sigma_values, Uel_ref)
 
 
+#%% OBJECTIVE FUNCTION 
+# load smprior object
+with open('../smprior_32_300.p', 'rb') as input:
+    smprior = pickle.load(input)
+
+def obj(x, grad):
+    compute_grad = False
+    if grad.size >0:
+        compute_grad=True
+    v1, g1 =  myeit.evaluate_target_external(Imatr, x, Uel_ref, compute_grad=compute_grad)
+
+    v2, g2 = smprior.evaluate_target_external(x, compute_grad=compute_grad)
+    if grad.size >0:
+        grad[:] = g1+g2
+    return v1+v2
 
 # %%
 opt = nlopt.opt(nlopt.LD_MMA, myeit.mesh.num_cells())
