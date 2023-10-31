@@ -58,13 +58,15 @@ class SMPrior:
 
 
 if __name__ ==  '__main__':
-    from EITLib import EITFenics
+    from EITLib import EITFenics, create_disk_mesh
     from dolfin import *
     import pickle
     L = 32
     F = 40
     n = 300
-    myeit = EITFenics(L=L, n=n, F=F, background_conductivity=0.8)
+    radius = 1
+    mesh = create_disk_mesh(radius, n, F)
+    myeit = EITFenics(mesh, L, background_conductivity=0.8)
     H = FunctionSpace(myeit.mesh, 'CG', 1)
 
     plot(myeit.mesh)
@@ -84,11 +86,11 @@ if __name__ ==  '__main__':
     fun.vector().set_local(sample)
     plot(fun)
 
-    mesh_file =XDMFFile('mesh_file_'+L+'_'+n+'.xdmf')
+    mesh_file =XDMFFile('mesh_file_'+str(L)+'_'+str(n)+'.xdmf')
     mesh_file.write(myeit.mesh)
     mesh_file.close()
 
-    file = open('smprior_50_300.p', 'wb')
+    file = open('smprior_'+str(L)+'_'+str(n)+'.p', 'wb')
     pickle.dump(smprior, file)
 
 

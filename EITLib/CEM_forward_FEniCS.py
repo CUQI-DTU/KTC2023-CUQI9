@@ -59,11 +59,15 @@ phantom_float[phantom == 0] = background_conductivity
 phantom_float[np.isclose(phantom, 1, rtol=0.01)] = low_conductivity
 phantom_float[phantom == 2] = high_conductivity
 
+#%% READ MESH 
+mesh = Mesh()
+with XDMFFile("../mesh_file_32_300.xdmf") as infile:
+    infile.read(mesh)
 
 # %% build eit-fenics model
 L = 32
 F = 50
-myeit = EITFenics(L, F, background_conductivity=background_conductivity)
+myeit = EITFenics(mesh, L, background_conductivity=background_conductivity)
 num_inj_tested = 76
 z = 1e-6 
 Uel_sim, Q, q_list = myeit.solve_forward(Imatr, phantom_float, num_inj_tested)

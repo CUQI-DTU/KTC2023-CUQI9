@@ -19,17 +19,16 @@ def create_disk_mesh(radius, n, F):
     return mesh
 
 class  EITFenics:
-    def __init__(self, L=32, n=300, F=50, background_conductivity=0.8):
+    def __init__(self, mesh, L=32, background_conductivity=0.8):
         self.L = L
-        self.F = F
-        self.n = n
+
         impedance_scalar = 1e-6
         self.impedance = []
         for i in range(self.L):
             self.impedance.append(impedance_scalar)
 
         self.background_conductivity = background_conductivity
-        self.mesh = create_disk_mesh(1, self.n, self.F)
+        self.mesh = mesh
         
         self._build_subdomains()
         self.V, self.dS = self.build_spaces(self.mesh, L, self.subdomains)
