@@ -86,13 +86,13 @@ class FenicsForwardModel:
         subdomains = self._mark_partitions(recon_mesh)
         dx = Measure("dx", self.mesh, subdomain_data=subdomains)
 
-        coeffs = np.zeros((J, J, N))
+        dBsigma = np.zeros((J, J, N))
         for n in range(N):
             print("Compute coefficient n=%d" % (n))
             integrand = inner(nabla_grad(u), nabla_grad(u))
-            coeffs[:, :, n] = assemble(integrand * dx(n))
+            dBsigma[:, :, n] = assemble(integrand * dx(n))
 
-        return coeffs
+        return dBsigma
 
     def __init__(self, mesh, subdomains, electrode_count, impedance, conductivity):
         self.mesh = mesh
