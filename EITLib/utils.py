@@ -100,7 +100,7 @@ class  EITFenics:
         else:
             grad = None
         
-        return self.self.evaluate_target_functional(q_list, u_measure), grad
+        return self.evaluate_target_functional(q_list, u_measure), grad
 
 
     def solve_forward(self, injection_patterns, phantom=None, num_inj_tested=None):
@@ -263,7 +263,8 @@ class  EITFenics:
     def build_spaces(self, mesh, L, subdomains):
         R = FunctionSpace(mesh, "R", 0)
         H1 = FunctionSpace(mesh, "CG", 1)
-        self.H_sigma = FunctionSpace(mesh, "DG", 0)
+        # self.H_sigma = FunctionSpace(mesh, "DG", 0)
+        self.H_sigma = FunctionSpace(mesh, "CG", 1)
     
         spacelist = None
     

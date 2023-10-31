@@ -5,6 +5,7 @@ from utils import *
 import scipy.io as io
 import nlopt
 from KTCRegularization import SMPrior
+import pickle
 
 # %% set up data
 case_name = 'case1'  # 'case1' , case3', 'case4', 'case_ref'
@@ -66,8 +67,8 @@ myeit = EITFenics(mesh=mesh, L=L, background_conductivity=background_conductivit
 
 #%% OBJECTIVE FUNCTION 
 # load smprior object
-with open('../smprior_32_300.p', 'rb') as input:
-    smprior = pickle.load(input)
+file = open("smprior_32_300.p", 'rb')
+smprior = pickle.load(file)
 
 def obj(x, grad):
     compute_grad = False
@@ -77,17 +78,17 @@ def obj(x, grad):
 
     v2, g2 = smprior.evaluate_target_external(x, compute_grad=compute_grad)
     if grad.size >0:
-        grad[:] = g1+g2
+        grad[:] = g1.flatten()+g2.flatten()
     return v1+v2
 
 # %%
-opt = nlopt.opt(nlopt.LD_MMA, myeit.mesh.num_cells())
-opt.set_lower_bounds(1e-5*np.ones(myeit.mesh.num_cells()))
-opt.set_upper_bounds(1e1*np.ones(myeit.mesh.num_cells()))
-opt.set_min_objective(lambda x, grad: myeit.evalute_target_external(Imatr, x, Uel_ref, grad))
+opt = nlopt.opt(nlopt.LD_MMA, myeit.H_sigma.dim())
+opt.set_lower_bounds(1e-5*np.ones(myeit.H_sigma.dim()))
+opt.set_upper_bounds(1e1*np.ones(myeit.H_sigma.dim()))
+opt.set_min_objective(obj)
 opt.set_xtol_rel(1e-4)
 opt.set_maxeval(100)
-x0 = 0.8*np.ones(myeit.mesh.num_cells())
+x0 = 0.8*np.ones(myeit.H_sigma.dim())
 x = opt.optimize(x0)
 minf = opt.last_optimum_value()
 print('optimum at ', x)
