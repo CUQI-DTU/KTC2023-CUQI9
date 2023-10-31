@@ -122,12 +122,13 @@ class FenicsForwardModel:
         L = 0 * ds
         for i in range(1, self.electrode_count):
             area = assemble(1 * ds(i + 1))
-            L += (current_injection[i] * V[i] / area) * ds(i)
+            print(area)
+            L += (current_injection[i] * V[i-1] / area) * ds(i + 1)
 
 
         area = assemble(1 * ds(0 + 1))
         for i in range(1, self.electrode_count):
-            L -= (current_injection[0] * V[i] / area) * ds(0 + 1)
+            L -= (current_injection[0] * V[i-1] / area) * ds(0 + 1)
 
         return self._solve(self.a, L)
 
@@ -178,15 +179,15 @@ class FenicsForwardModel:
         # Make C component
         C = 0 * dx
         for i in range(1, self.electrode_count):
-            C += 1 / self.z[0] * (u * V[i] + v * U[i]) * ds(0 + 1)
-            C -= 1 / self.z[i] * (u * V[i] + v * U[i]) * ds(i + 1)
+            C += 1 / self.z[0] * (u * V[i-1] + v * U[i-1]) * ds(0 + 1)
+            C -= 1 / self.z[i] * (u * V[i-1] + v * U[i-1]) * ds(i + 1)
 
         # Make G component
         G = 0 * dx
         for i in range(1, self.electrode_count):
-            G += 1 / self.z[i] * (U[i] * V[i]) * ds(i + 1)
+            G += 1 / self.z[i] * (U[i-1] * V[i-1]) * ds(i + 1)
             for j in range(1, self.electrode_count):
-                G += 1 / self.z[0] * (U[i] * V[j]) * ds(0 + 1)
+                G += 1 / self.z[0] * (U[i-1] * V[j-1]) * ds(0 + 1)
 
         A = B + C + G
 
