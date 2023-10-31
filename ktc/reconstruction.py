@@ -38,19 +38,18 @@ class SeriesReversion:
         grad_cache.close()
 
     def _gradient(self):
-        # N = self.recon_mesh.num_cells()
+        N = self.recon_mesh.num_cells()
 
-        # blocks = []
-        # for n in range(N):
-        #     P_list = []
-        #     chi = self.model.basis(n, self.W)
-        #     for ui in self.u:
-        #         _, P = self.model.solve_pertubation(chi, ui)
-        #         P_list.append(P)
-        #     blocks.append(P_list)
+        blocks = []
+        for n in range(N):
+            P_list = []
+            chi = self.model.basis(n, self.W)
+            for ui in self.u:
+                _, P = self.model.solve_pertubation(chi, ui)
+                P_list.append(P)
+            blocks.append(P_list)
 
-        # return np.block(blocks).T
-        return np.zeros((10,10))
+        return np.block(blocks).T
 
     def _smoothingPrior(self):
         sigma0 = np.ones((self.recon_mesh.num_vertices(), 1))  # linearization point
@@ -64,19 +63,19 @@ class SeriesReversion:
     def reconstruct(self, voltages):
         J = self.gradient
 
-        # L = self._smoothingPrior()
-        # # F1, _, _, _ = np.linalg.lstsq(J, (voltages - self.U).flatten(order = "F"))
-        # F1 = np.linalg.solve(
-        #     J.T @ J + L.T @ L, J.T @ (voltages - self.voltages_ref).flatten(order="F")
-        # )
-        print(J)
+        L = self._smoothingPrior()
+        # F1, _, _, _ = np.linalg.lstsq(J, (voltages - self.U).flatten(order = "F"))
+        F1 = np.linalg.solve(
+            J.T @ J + L.T @ L, J.T @ (voltages - self.voltages_ref).flatten(order="F")
+        )
+        # print(J)
         # u, _ = self.model.solve(current_injections)
 
         # h = -self.model.poisson(F1, current_injections, u)
         # v = self.model.poisson(F1, current_injections, h)
         # F2 = np.linalg.solve(J, v)
 
-        # return F1
+        return F1
 
     def solution_plot(self, pertubation):
         f = Function(self.W)

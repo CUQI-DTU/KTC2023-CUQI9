@@ -89,9 +89,8 @@ class FenicsForwardModel:
         coeffs = np.zeros((J, J, N))
         for n in range(N):
             print("Compute coefficient n=%d" % (n))
-            for i, j in product(range(J), range(J)):
-                integrand = inner(nabla_grad(u[i]), nabla_grad(u[j]))
-                coeffs[i, j, n] = assemble(integrand * dx(n))
+            integrand = inner(nabla_grad(u), nabla_grad(u))
+            coeffs[:, :, n] = assemble(integrand * dx(n))
 
         return coeffs
 
