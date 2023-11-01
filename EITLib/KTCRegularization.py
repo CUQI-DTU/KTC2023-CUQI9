@@ -1,5 +1,6 @@
 #%%
 import numpy as np
+import matplotlib.pyplot as plt
 
 class SMPrior:
     def __init__(self, ginv, corrlength, var, mean, covariancetype=None):
@@ -76,7 +77,7 @@ if __name__ ==  '__main__':
     L = 32
     F = 40
     n = 300
-    radius = 1
+    radius = 0.115
     mesh = create_disk_mesh(radius, n, F)
     myeit = EITFenics(mesh, L, background_conductivity=0.8)
     H = FunctionSpace(myeit.mesh, 'CG', 1)
@@ -86,8 +87,8 @@ if __name__ ==  '__main__':
     v2d = vertex_to_dof_map(H)
     d2v = dof_to_vertex_map(H)
 
-    sigma0 = np.ones((myeit.mesh.num_vertices(), 1)) #linearization point
-    corrlength =  1#* 0.115 #used in the prior
+    sigma0 = 0.8*np.ones((myeit.mesh.num_vertices(), 1)) #linearization point
+    corrlength =  0.115#* 0.115 #used in the prior
     var_sigma = 0.05 ** 2 #prior variance
     mean_sigma = sigma0
     smprior = SMPrior(myeit.mesh.coordinates()[d2v], corrlength, var_sigma, mean_sigma)
@@ -96,7 +97,8 @@ if __name__ ==  '__main__':
     sample = smprior.draw_samples(1)
     fun = Function(H)
     fun.vector().set_local(sample)
-    plot(fun)
+    im = plot(fun)
+    plt.colorbar(im)
 
     mesh_file =XDMFFile('mesh_file_'+str(L)+'_'+str(n)+'.xdmf')
     mesh_file.write(myeit.mesh)

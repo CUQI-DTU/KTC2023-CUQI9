@@ -55,7 +55,7 @@ phantom_float[phantom == 2] = high_conductivity
 # %% build eit-fenics model
 L = 32
 mesh = Mesh()
-with XDMFFile("../mesh_file_32_300.xdmf") as infile:
+with XDMFFile("mesh_file_32_300.xdmf") as infile:
     infile.read(mesh)
 myeit = EITFenics(mesh=mesh, L=L, background_conductivity=background_conductivity)
 # #%%
@@ -74,6 +74,7 @@ Uel_data = Uel_sim # or Uel_ref
 file = open("smprior_32_300.p", 'rb')
 smprior = pickle.load(file)
 
+# %%
 eva_count = 0
 
 def obj(x, grad):
@@ -126,7 +127,7 @@ opt.set_lower_bounds(1e-5*np.ones(myeit.H_sigma.dim()))
 opt.set_upper_bounds(1e2*np.ones(myeit.H_sigma.dim()))
 opt.set_min_objective(obj)
 opt.set_xtol_rel(1e-4)
-opt.set_maxeval(10)
+opt.set_maxeval(100)
 x0 = 0.8*np.ones(myeit.H_sigma.dim())
 x = opt.optimize(x0)
 minf = opt.last_optimum_value()
