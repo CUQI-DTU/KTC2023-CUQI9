@@ -14,6 +14,7 @@ from dolfin import (
     solve,
 )
 from mshr import Circle, generate_mesh
+from dolfin import Cell
 
 
 def create_disk_mesh(radius, electrode_count, polygons=300, fineness=50):
@@ -113,7 +114,70 @@ class FenicsForwardModel:
 
         self.solution_space = self._solution_space()
         self.a = self._bilinear_form()
+    
+    def _mark_partitions(self, recon_mesh):
+        class Partition(SubDomain):
+            def __init__(self, recon_mesh, cell_index):
+                super().__init__()
+                self.cell_index = cell_index
+                self.recon_mesh = recon_mesh
+
+            def inside(self, x, _):
+                point = Point(x)
+                cell = Cell(self.recon_mesh, self.cell_index)
+                return cell.contains(point)
+
+        topology = self.mesh.topology()
+        subdomains = MeshFunction("size_t", self.mesh, dim=topology.dim())
+        for i in range(recon_mesh.num_cells()):
+            partition = Partition(recon_mesh, i)
+            partition.mark(subdomains, i)
+
+        return subdomains
+    
+    def gradient(self, recon_mesh, u, Mpat):
+        M = recon_mesh.num_cells()
+        H = self._interior_potential_space()
+        Nn = H.dim()
+        L = self.electrode_count
+        Q = L-1
+        K = len(u)
         
+        phi = TestFunction(H)
+        psi = TrialFunction(H)
+
+        subdomains = self._mark_partitions(recon_mesh)
+        dx = Measure("dx", self.mesh, subdomain_data=subdomains)
+        
+        C = np.vstack([np.ones(L-1), -np.identity(L-1)])
+        # Ctilde = np.hstack([np.zeros((L, Nn+L-1)), C])
+        # Mtilde = np.hstack([Mpat, Ctilde])
+        A = assemble(self.a).array()
+        Mtilde = np.hstack([np.zeros((np.shape(Mpat)[0], Nn)), Mpat @ C])
+        print(A.shape)
+        print(Mtilde.shape)
+        Gamma = np.linalg.solve(A, Mtilde.T)
+        Gammatilde = Gamma[:Nn]
+        
+        
+        alphatilde_list = []
+        for ui in u:
+            alphatilde_list.append(ui.vector().get_local())
+        alphatilde = np.array(alphatilde_list)
+        
+        # grad = np.zeros((L*K,0))
+        grad_list = []
+        for l in range(M):
+            integrand = inner(nabla_grad(phi), nabla_grad(psi))
+            dBsigma = assemble(integrand * dx(l)).array()
+            
+            # grad_list = np.hstack([grad, -Gammatilde.T @ dBsigma @ alphatilde.T])
+            col = -Gammatilde.T @ dBsigma @ alphatilde.T
+            grad_list.append(col.flatten(order = "F"))
+
+        return np.array(grad_list).T
+    
+       
     def _unpack_solution(self, U):
         return np.concatenate([[-U.sum()], U]) 
 
