@@ -76,7 +76,7 @@ def create_disk_mesh(radius, electrode_count, polygons=300, fineness=50):
     for i in range(electrode_count):
         theta = 2 * np.pi * i / electrode_count + phase
         electrode = Electrode(theta, electrode_width)
-        electrode.mark(subdomains, i)
+        electrode.mark(subdomains, i + 1)
 
     return mesh, subdomains
 
@@ -113,6 +113,9 @@ class FenicsForwardModel:
 
         self.solution_space = self._solution_space()
         self.a = self._bilinear_form()
+        
+    def _unpack_solution(self, U):
+        return np.concatenate([[-U.sum()], U]) 
 
     def solve_forward(self, current_injection):
         ds = self._boundary_measure()
@@ -122,7 +125,6 @@ class FenicsForwardModel:
         L = 0 * ds
         for i in range(1, self.electrode_count):
             area = assemble(1 * ds(i + 1))
-            print(area)
             L += (current_injection[i] * V[i-1] / area) * ds(i + 1)
 
 
@@ -130,7 +132,8 @@ class FenicsForwardModel:
         for i in range(1, self.electrode_count):
             L -= (current_injection[0] * V[i-1] / area) * ds(0 + 1)
 
-        return self._solve(self.a, L)
+        u, U = self._solve(self.a, L)
+        return u, self._unpack_solution(U)
 
     def solve_pertubation(self, pertubation, y):
         dx = self._domain_measure()
@@ -198,7 +201,7 @@ class FenicsForwardModel:
         solve(a == L, w)
 
         x = w.vector().get_local()
-        U = x[-self.electrode_count :]
+        U = x[-(self.electrode_count - 1):]
 
         # TODO: Find better way to split mixed function
         H = self._interior_potential_space()
