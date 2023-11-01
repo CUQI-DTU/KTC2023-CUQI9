@@ -29,6 +29,8 @@ class  EITFenics:
 
         self.background_conductivity = background_conductivity
         self.mesh = mesh
+
+        self.H_sigma = FunctionSpace(mesh, "CG", 1)
         
         self._build_subdomains()
         self.V, self.dS = self.build_spaces(self.mesh, L, self.subdomains)
@@ -122,6 +124,8 @@ class  EITFenics:
         # num_inj_tested = 76
 
         B = self.B_background if phantom is None else self.build_b(self.inclusion, self.V, self.dS, L)
+
+        self.B = B
 
         Q = np.zeros((L, num_inj))
         Diff = np.zeros((L-1, num_inj))
@@ -263,7 +267,7 @@ class  EITFenics:
         R = FunctionSpace(mesh, "R", 0)
         H1 = FunctionSpace(mesh, "CG", 1)
         # self.H_sigma = FunctionSpace(mesh, "DG", 0)
-        self.H_sigma = FunctionSpace(mesh, "CG", 1)
+        # self.H_sigma = FunctionSpace(mesh, "CG", 1)
     
         spacelist = None
     
@@ -340,7 +344,7 @@ class  EITFenics:
         Q = q.vector().get_local()[:L]
     
         return Q, q
-    
+
 
 class Inclusion(UserExpression):
     def __init__(self, phantom, **kwargs):
@@ -352,3 +356,57 @@ class Inclusion(UserExpression):
 
     def eval(self, values, x):
         values[0] = self._interpolater([x[0], x[1]])
+
+# The following is copied form Aksel's code
+
+# idx = dof_to_vertex_map(V1)
+# idx2 = vertex_to_dof_map(V1)
+
+class Denom(UserExpression):
+
+    def __init__(self,gradf,delta,**kwargs):
+        super().__init__(self,**kwargs)
+        self.phigrad = gradf
+        self.delta = delta
+
+    def value_shape(self):
+        return ()
+
+    def eval(self,values,x):
+        values[0] = 1/(((self.phigrad(x)[0])**2 + (self.phigrad(x)[1])**2+self.delta)**(1/2))
+        #values[0] = self.phigrad(x)[0]
+
+class MyTV:
+    def __init__(self, q0fun, mesh, delta,**kwargs):
+        #self.qfun = project(qFunction(phi,q1,q2),V1)
+
+        self.V1 = FunctionSpace(mesh,'CG',1)
+        self.V02 = VectorFunctionSpace(mesh,'DG',0)
+
+        self.q0fun = q0fun
+        self.q0grad = project(grad(self.q0fun),self.V02)
+        self.q0_denom = Denom(self.q0grad,delta)
+
+        # operator
+        self.p_trial = TrialFunction(self.V1)
+        self.p_test = TestFunction(self.V1)
+
+        #self.L_op = dl.assemble(ufl.inner(self.p_trial, self.p_test)*dx)
+        #self.TV_op = assemble(self.q_denom*ufl.inner(grad(self.p_trial),grad(self.p_test))*dx)
+        self.TV_op = assemble((self.q0_denom*inner(grad(self.p_trial),grad(self.p_test)))*dx)
+
+        self.delta = delta
+
+    def eval_TV(self,qfun):
+        self.update_op(qfun)
+        return np.dot(self.TV_op * qfun.vector(),qfun.vector())
+
+    def eval_grad(self,qfun):
+        self.update_op(qfun)
+        return 2*(self.TV_op * qfun.vector())#[idx2]
+    
+    def update_op(self,q0fun):
+        self.q0fun = q0fun
+        self.q0grad = project(grad(self.q0fun),self.V02)
+        self.q0_denom = Denom(self.q0grad,self.delta)
+        self.TV_op = assemble((self.q0_denom*inner(grad(self.p_trial),grad(self.p_test)))*dx) 
