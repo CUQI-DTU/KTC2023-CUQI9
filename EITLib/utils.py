@@ -86,7 +86,7 @@ class  EITFenics:
         plt.colorbar(im)  # norm= 'log'
         plt.savefig("phantom.png")
 
-        self.inclusion = Inclusion(phantom, degree=0)
+        self.inclusion = Inclusion(phantom, degree=1)
 
     def evaluate_target_external(self, injection_patterns, sigma_values, u_measure, compute_grad=None, num_inj_tested=None):
         print("* evaluate_target_external called")
@@ -134,7 +134,7 @@ class  EITFenics:
 
             Q[:, i] = Q_i
             Diff[:, i] = np.diff(Q_i)
-        print("end solve forward")
+        # print("end solve forward")
         Uel_sim = -Diff.flatten(order='F')
         return Uel_sim, Q, q_list
     
@@ -181,7 +181,6 @@ class  EITFenics:
             # print(i)
             #plt.figure()
             #plt.plot( assemble(sigma * inner(nabla_grad(q[L]), nabla_grad(v[L]))*dx )[:100])
-        
         return grad
         
     def evaluate_target_functional(self, q_list, u_measure):

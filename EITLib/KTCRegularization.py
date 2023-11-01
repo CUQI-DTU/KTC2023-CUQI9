@@ -46,8 +46,8 @@ class SMPrior:
     
     def evaluate_target_external(self, x, compute_grad=False):
         x = x.reshape((-1,1))
-        print("x.shape: ", x.shape)
-        print("self.mean.shape: ", self.mean.shape)
+        # print("x.shape: ", x.shape)
+        # print("self.mean.shape: ", self.mean.shape)
         if compute_grad:
             grad = self.L.T @ self.L @ (x - self.mean)
         else:
