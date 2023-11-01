@@ -138,7 +138,7 @@ class FenicsForwardModel:
     def solve_pertubation(self, pertubation, y):
         dx = self._domain_measure()
 
-        (v, _, *V) = TestFunction(self.solution_space)
+        (v, *V) = TestFunction(self.solution_space)
 
         L = inner(nabla_grad(y), nabla_grad(v)) * pertubation * dx
         y, Y = self._solve(self.a, L)
