@@ -133,7 +133,7 @@ var_sigma = 0.05 ** 2 #prior variance
 mean_sigma = sigma0
 smprior = KTCRegularization.SMPrior(Mesh.g, corrlength, var_sigma, mean_sigma)
 reg1_par_list = [1]#[0.5, 0.1, 0.05, 0.01] #[0.5, 1, 5, 10, 20]
-reg2_par_list = np.logspace(1,12,30)#[0, 8e6]#[0.5, 0.1, 0.05, 0.01] #[0.5, 1, 5, 10, 20]
+reg2_par_list = [1e18]#[0, 8e6]#[0.5, 0.1, 0.05, 0.01] #[0.5, 1, 5, 10, 20]
 
 L = smprior.L
 radius = np.max(np.linalg.norm(Mesh.g, axis = 1))
@@ -144,22 +144,23 @@ angle = 2*np.pi/Nel
 for i in range(num_el):
     electrodes[i] = radius*np.array([np.sin(i*angle), np.cos(i*angle)])
 
-"""
+
 D = np.zeros(m)
 for i in range(m):
     v = Mesh.g[i]
     dist = np.zeros(num_el)
     for k, e in enumerate(electrodes):
         dist[k] = np.linalg.norm(v - e)
-    D[i] = np.linalg.norm(dist, ord = 0.5)
-       
+    D[i] = (np.linalg.norm(dist, ord = 7)**7)*np.linalg.norm(v)**3
+      
 
 D = np.diag(D)  
+
 reg_vis = KTCAux.interpolateRecoToPixGrid(np.diag(D), Mesh)
 plt.figure()
 plt.imshow(reg_vis)
-for electrode in electrodes:
-    plt.scatter(255*(0.5 + electrode[0]/(2*radius)), 255-255*(0.5 + electrode[1]/(2*radius)), s=10, c=k)
+#for electrode in electrodes:
+#    plt.scatter(255*(0.5 + electrode[0]/(2*radius)), 255-255*(0.5 + electrode[1]/(2*radius)), s=10, c=k)
 plt.colorbar()
 plt.title("Local regularization")
 plt.show()
@@ -183,7 +184,7 @@ plt.scatter(255*(0.5 + mid[0]/(2*radius)), 255-255*(0.5 + mid[1]/(2*radius)), s=
 plt.colorbar()
 plt.title("Local regularization")
 plt.show()
-
+"""
 # Get a list of .mat files in the input folder
 mat_files = glob.glob(inputFolder + '/data*.mat')
 for objectno in range(0,len(mat_files)): #compute the reconstruction forc each input file
