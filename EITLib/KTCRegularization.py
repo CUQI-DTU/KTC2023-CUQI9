@@ -88,7 +88,7 @@ if __name__ ==  '__main__':
     d2v = dof_to_vertex_map(H)
 
     sigma0 = 0.8*np.ones((myeit.mesh.num_vertices(), 1)) #linearization point
-    corrlength =  0.115#* 0.115 #used in the prior
+    corrlength =  radius#* 0.115 #used in the prior
     var_sigma = 0.05 ** 2 #prior variance
     mean_sigma = sigma0
     smprior = SMPrior(myeit.mesh.coordinates()[d2v], corrlength, var_sigma, mean_sigma)
