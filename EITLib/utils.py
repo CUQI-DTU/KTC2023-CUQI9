@@ -12,6 +12,7 @@ from dolfin import *
 from mshr import *
 from scipy.sparse import diags
 from petsc4py import PETSc
+import scipy as sp
 
 def create_disk_mesh(radius, n, F):
     center = Point(0, 0)
@@ -40,6 +41,26 @@ class  EITFenics:
         self.background_Uel_ref = None
         self.background_Uel_sim = None
         self.background_q_list = None
+    # create noise percentage setter
+
+    def SetInvGamma(self, noise_percentage, noise_percentage2=0, meas_data=None):
+        if meas_data is None:
+            raise ValueError("meas_data must be provided")
+        meas = meas_data
+
+ 
+        var_meas = np.power(((noise_percentage / 100) * (np.abs(meas))),2)
+        var_meas = var_meas + np.power((noise_percentage2 / 100) * np.max(np.abs(meas)),2)
+        Gamma_n = np.diag(np.array(var_meas).flatten())
+ 
+        InvGamma_n = np.linalg.inv(Gamma_n)
+        # print shape
+        print("InvGamma_n.shape", InvGamma_n.shape)
+        self.InvGamma_n = sp.sparse.csr_matrix(InvGamma_n)
+        #self.Ln = sp.sparse.csr_matrix(np.linalg.cholesky(InvGamma_n))
+        #self.InvLn = sp.sparse.csr_matrix(np.linalg.cholesky(Gamma_n))
+        #q = 0
+
 
     def add_background_sol_info(self, background_Uel_sim, background_Uel_ref, background_q_list):
         self.background_Uel_sim = background_Uel_sim
@@ -177,7 +198,11 @@ class  EITFenics:
 
             q_i = q.vector().get_local()[:L]
             q_background_i = self.background_q_list[i].vector().get_local()[:L]
-            rhs_sub =-self.D_sub.T@(self.D_sub@(q_i- q_background_i)\
+            # print shape of weight matrix
+
+            rhs_sub =-self.D_sub.T@\
+                self.InvGamma_n[i*(L-1):(i+1)*(L-1),i*(L-1):(i+1)*(L-1)]@\
+                    (self.D_sub@(q_i- q_background_i)\
                                      - (u_measure[i*(L-1):(i+1)*(L-1)]\
                                      -self.background_Uel_ref[i*(L-1):(i+1)*(L-1)]) )
             rhs = Function(self.V).vector()
@@ -213,9 +238,14 @@ class  EITFenics:
         for i, q in enumerate(q_list):
             background_q_i = self.background_q_list[i].vector().get_local()[:L]
             q_i = q.vector().get_local()[:L]
-            J +=0.5 * np.linalg.norm(self.D_sub@(q_i - background_q_i)\
+            diff_q_data = self.D_sub@(q_i - background_q_i)\
                              - (u_measure[i*(L-1):(i+1)*(L-1)]\
-                - self.background_Uel_sim[i*(L-1):(i+1)*(L-1)]))**2
+                - self.background_Uel_sim[i*(L-1):(i+1)*(L-1)])
+            
+            J +=0.5 * diff_q_data.T @ self.InvGamma_n[i*(L-1):(i+1)*(L-1),i*(L-1):(i+1)*(L-1)] @ diff_q_data
+            #print J
+
+
 
         return J
 

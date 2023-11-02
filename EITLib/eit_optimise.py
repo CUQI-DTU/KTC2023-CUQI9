@@ -82,6 +82,7 @@ background_Uel_sim, background_Q, background_q_list = myeit.solve_forward(Imatr,
 # %% Prepare simulated/fake data
 Uel_sim, Q, q_list = myeit.solve_forward(Imatr, phantom_float, 76)
 myeit.add_background_sol_info(background_Uel_sim, background_Uel_ref, background_q_list)
+myeit.SetInvGamma( 0.05, 0.01, meas_data=Uel_ref- background_Uel_ref)
 
 # %%
 Uel_data =  Uel_ref
@@ -196,7 +197,7 @@ from scipy.optimize import minimize
 
 def obj_scipy(x):
     v1, _ =  myeit.evaluate_target_external(Imatr, x, Uel_data)
-    factor = 1e-8
+    factor = 1
     v2, _ = smprior.evaluate_target_external(x)
  
     plt.figure()
@@ -212,7 +213,7 @@ def obj_scipy(x):
  
 def obj_scipy_grad(x):
     v1, g1 =  myeit.evaluate_target_external(Imatr, x, Uel_data, compute_grad=True)
-    factor = 1e-8
+    factor = 1
     v2, g2 = smprior.evaluate_target_external(x, compute_grad=True)
  
     g1_fenics = Function(myeit.H_sigma)
