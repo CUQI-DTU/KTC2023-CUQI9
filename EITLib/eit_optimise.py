@@ -22,7 +22,7 @@ background_phantom_file_name = KTC23_dir+"true1.mat"
 background_phantom = io.loadmat(background_phantom_file_name)["truth"]
 background_phantom[:] = 0
 background_Uel_ref = io.loadmat(KTC23_dir+"ref.mat")["Uelref"].flatten()
-background_phantom_float = np.zeros(phantom.shape)
+background_phantom_float = np.zeros(background_phantom.shape)
 background_phantom_float[:] = 0.8
 
 if case_name == 'case1':

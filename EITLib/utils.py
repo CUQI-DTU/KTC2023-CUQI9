@@ -166,7 +166,7 @@ class  EITFenics:
         H1 = FunctionSpace(self.mesh, 'CG', 1)
 
         #B_transpose = self.build_b_adjoint(self.inclusion, self.V, self.dS, L)
-
+        B_transpose = self.B.copy()
         petsc_mat = as_backend_type(B_transpose).mat()
         petsc_mat.transpose()
         B_transpose = PETScMatrix(petsc_mat)
