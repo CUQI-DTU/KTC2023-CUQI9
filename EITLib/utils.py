@@ -11,6 +11,7 @@ from matplotlib import pyplot as plt
 from dolfin import *
 from mshr import *
 from scipy.sparse import diags
+from petsc4py import PETSc
 
 def create_disk_mesh(radius, n, F):
     center = Point(0, 0)
@@ -36,6 +37,14 @@ class  EITFenics:
         self.V, self.dS = self.build_spaces(self.mesh, L, self.subdomains)
         self._build_D_sub()
         self.B_background = self.build_b(self.background_conductivity, self.V, self.dS, L)
+        self.background_Uel_ref = None
+        self.background_Uel_sim = None
+        self.background_q_list = None
+
+    def add_background_sol_info(self, background_Uel_sim, background_Uel_ref, background_q_list):
+        self.background_Uel_sim = background_Uel_sim
+        self.background_Uel_ref = background_Uel_ref
+        self.background_q_list = background_q_list
 
     def _build_D_sub(self):
         L = self.L
@@ -156,12 +165,21 @@ class  EITFenics:
         # Define H1 room
         H1 = FunctionSpace(self.mesh, 'CG', 1)
 
-        B_transpose = self.build_b_adjoint(self.inclusion, self.V, self.dS, L)
+        #B_transpose = self.build_b_adjoint(self.inclusion, self.V, self.dS, L)
+
+        petsc_mat = as_backend_type(B_transpose).mat()
+        petsc_mat.transpose()
+        B_transpose = PETScMatrix(petsc_mat)
 
         v_list = []
         print("solve adjoint")
         for i, q in enumerate(q_list):
-            rhs_sub =-self.D_sub.T@(self.D_sub@q.vector().get_local()[:L] - u_measure[i*(L-1):(i+1)*(L-1)] )
+
+            q_i = q.vector().get_local()[:L]
+            q_background_i = self.background_q_list[i].vector().get_local()[:L]
+            rhs_sub =-self.D_sub.T@(self.D_sub@(q_i- q_background_i)\
+                                     - (u_measure[i*(L-1):(i+1)*(L-1)]\
+                                     -self.background_Uel_ref[i*(L-1):(i+1)*(L-1)]) )
             rhs = Function(self.V).vector()
 
             rhs.set_local(np.concatenate((rhs_sub, np.zeros(self.V.dim()-L))))
@@ -193,7 +211,11 @@ class  EITFenics:
         J = 0
 
         for i, q in enumerate(q_list):
-            J +=0.5 * np.linalg.norm(self.D_sub@q.vector().get_local()[:L] - u_measure[i*(L-1):(i+1)*(L-1)] )**2
+            background_q_i = self.background_q_list[i].vector().get_local()[:L]
+            q_i = q.vector().get_local()[:L]
+            J +=0.5 * np.linalg.norm(self.D_sub@(q_i - background_q_i)\
+                             - (u_measure[i*(L-1):(i+1)*(L-1)]\
+                - self.background_Uel_sim[i*(L-1):(i+1)*(L-1)]))**2
 
         return J
 
