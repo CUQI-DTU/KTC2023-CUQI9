@@ -1,14 +1,11 @@
 import numpy as np
 import scipy as sp
-from PIL import Image
 import matplotlib.image
-import imageio.v3
 import os
 from skimage.metrics import structural_similarity as ssim
 
 inclusion_list = [1,2,3,4]
 categories_list = [1,4,7]
-categories_list = [7]
 
 folder_ground_truth = "GroundTruths"
 folder_training_data = "TrainingData"
