@@ -13,7 +13,7 @@ low_conductivity = 1e-2
 background_conductivity = 0.8
 
 # %% set up data
-case_name = 'case3'  # 'case1' , case3', 'case4', 'case_ref'
+case_name = 'case1'  # 'case1' , case3', 'case4', 'case_ref'
 KTC23_dir = './fwd_CEM_eltved_christensen/KTC23_data/'
 
 Imatr = io.loadmat(KTC23_dir+"ref.mat")["Injref"]
@@ -23,7 +23,7 @@ background_phantom = io.loadmat(background_phantom_file_name)["truth"]
 background_phantom[:] = 0
 background_Uel_ref = io.loadmat(KTC23_dir+"ref.mat")["Uelref"].flatten()
 background_phantom_float = np.zeros(background_phantom.shape)
-background_phantom_float[:] = 0.8
+background_phantom_float[:] = background_conductivity
 
 if case_name == 'case1':
     phantom_file_name = KTC23_dir+"true1.mat"
@@ -163,7 +163,7 @@ opt.set_lower_bounds(1e-5*np.ones(myeit.H_sigma.dim()))
 opt.set_upper_bounds(1e2*np.ones(myeit.H_sigma.dim()))
 
 
-x0 = 10*np.ones(myeit.H_sigma.dim())
+#x0= 10*np.ones(myeit.H_sigma.dim())
 
 
 # %%
@@ -194,67 +194,143 @@ x0 = 10*np.ones(myeit.H_sigma.dim())
 
 from scipy.optimize import minimize
  
+class Target_scipy:
+    def __init__(self, myeit, smprior, Imatr, Uel_data, factor=1) -> None:
+        self.myeit = myeit
+        self.smprior = smprior
+        self.Imatr = Imatr
+        self.Uel_data = Uel_data
+        self.v1 = None
+        self.v2 = None
+        self.g1 = None
+        self.g2 = None
+        self.factor = factor
+        self.counter = 0
+    def obj_scipy(self,x):
+        self.counter +=1
+        self.v1, self.g1 =  self.myeit.evaluate_target_external(self.Imatr, x, self.Uel_data, compute_grad=True)
+        factor = self.factor
+        self.v2, self.g2 = self.smprior.evaluate_target_external(x,  compute_grad=True)
+        
+        print(self.counter)
+        if self.counter % 5 == 0:
+            plt.figure()
+            im = plot(self.myeit.inclusion)
+            plt.colorbar(im)
+            plt.title("sigma")
+            plt.show()
+     
+     
+        print(self.v1+factor*self.v2, "(", self.v1, "+",factor, "*", self.v2,  ")")
+     
+        return self.v1+factor*self.v2
+ 
+    def obj_scipy_grad(self, x):
+        g1 = self.g1
+        g2 = self.g2
+        factor = self.factor
 
-def obj_scipy(x):
-    v1, _ =  myeit.evaluate_target_external(Imatr, x, Uel_data)
-    factor = 1
-    v2, _ = smprior.evaluate_target_external(x)
+        if self.counter % 20 == 0:
+          g1_fenics = Function(self.myeit.H_sigma)
+          g1_fenics.vector()[:] = g1.flatten()
+          g2_fenics = Function(self.myeit.H_sigma)
+          g2_fenics.vector()[:] = g2.flatten()
+          g_fenics = Function(self.myeit.H_sigma)
+          g_fenics.vector()[:] = g1.flatten()+factor*g2.flatten()
+          plt.figure()
+          im = plot(g1_fenics)
+          plt.colorbar(im)
+          plt.title("grad 1")
+          plt.show()
+          plt.figure()
+          im = plot(g2_fenics)
+          plt.colorbar(im)
+          plt.title("grad 2")
+          plt.show()
+          plt.figure()
+          im = plot(g_fenics)
+          plt.colorbar(im)
+          plt.title("grad (1 + factor*2)")
+          plt.show()
+        # fig, axs = plt.subplots(1, 4)
+        # axs[0].plot(myeit.inclusion)
+        # axs[0].set_title("sigma")
+        # axs[1].plot(g1_fenics)
+        # axs[1].set_title("grad 1")
+        # axs[2].plot(g2_fenics)
+        # axs[2].set_title("grad 2")
+        # axs[3].plot(g_fenics)
+        # axs[3].set_title("grad = grad 1 + factor * grad 2")
+     
+        return g1.flatten()+factor*g2.flatten()
  
-    plt.figure()
-    im = plot(myeit.inclusion)
-    plt.colorbar(im)
-    plt.title("sigma")
-    plt.show()
- 
- 
-    print(v1+factor*v2, "(", v1, "+",factor, "*", v2,  ")")
- 
-    return v1+factor*v2
- 
-def obj_scipy_grad(x):
-    v1, g1 =  myeit.evaluate_target_external(Imatr, x, Uel_data, compute_grad=True)
-    factor = 1
-    v2, g2 = smprior.evaluate_target_external(x, compute_grad=True)
- 
-    g1_fenics = Function(myeit.H_sigma)
-    g1_fenics.vector()[:] = g1.flatten()
-    g2_fenics = Function(myeit.H_sigma)
-    g2_fenics.vector()[:] = g2.flatten()
-    g_fenics = Function(myeit.H_sigma)
-    g_fenics.vector()[:] = g1.flatten()+factor*g2.flatten()
-    plt.figure()
-    im = plot(g1_fenics)
-    plt.colorbar(im)
-    plt.title("grad 1")
-    plt.show()
-    plt.figure()
-    im = plot(g2_fenics)
-    plt.colorbar(im)
-    plt.title("grad 2")
-    plt.show()
-    plt.figure()
-    im = plot(g_fenics)
-    plt.colorbar(im)
-    plt.title("grad (1 + factor*2)")
-    plt.show()
-    # fig, axs = plt.subplots(1, 4)
-    # axs[0].plot(myeit.inclusion)
-    # axs[0].set_title("sigma")
-    # axs[1].plot(g1_fenics)
-    # axs[1].set_title("grad 1")
-    # axs[2].plot(g2_fenics)
-    # axs[2].set_title("grad 2")
-    # axs[3].plot(g_fenics)
-    # axs[3].set_title("grad = grad 1 + factor * grad 2")
- 
-    return g1.flatten()+factor*g2.flatten()
- 
+target_scipy = Target_scipy( myeit, smprior, Imatr, Uel_data, factor=1)
 x0 = 0.8*np.ones(myeit.H_sigma.dim())
-res = minimize(obj_scipy, x0, method='BFGS', jac=obj_scipy_grad, options={'disp': True, 'maxiter':50} )
+# fenics function with circular inclusion
+#myexp = Expression("x[0]*x[0] + x[1]*x[1] < r*r ? 0.8 : 0.8", r=0.115, degree=1)
+#my_x0 = interpolate(myexp, myeit.H_sigma)
+#x0 = my_x0.vector().get_local()
+#plt.figure()
+#im = plot(my_x0)
+bounds = [(1e-5,100)]*myeit.H_sigma.dim()
+res = minimize(target_scipy.obj_scipy, x0, method='L-BFGS-B', jac=target_scipy.obj_scipy_grad, options={'disp': True, 'maxiter':500} , bounds=bounds)
 # %%
-res_fenics = Function(myeit.H_sigma)
-res_fenics.vector().set_local( res['x'].flatten())
+#res_fenics = Function(myeit.H_sigma)
+#res_fenics.vector().set_local( res['x'])
+res_fenics = target_scipy.myeit.inclusion
 plt.figure()
 im = plot(res_fenics)
 plt.colorbar(im)
+# %%
+#project and segment
+X, Y = np.meshgrid(np.linspace(-1,1,256),np.linspace(-1,1,256) )
+Z = np.zeros_like(X)
+
+# interpolate to the grid:
+for i in range(256):
+    for j in range(256):
+        try:
+            Z[i,j] = res_fenics(X[i,j], Y[i,j])
+        except:
+            Z[i,j] = background_conductivity
+
+#%%
+
+from KTCScoring import Otsu2
+deltareco_pixgrid = np.flipud(Z)
+level, x = Otsu2(deltareco_pixgrid.flatten(), 256, 7)
+
+
+
+
+deltareco_pixgrid_segmented = np.zeros_like(deltareco_pixgrid)
+ind0 = deltareco_pixgrid < x[level[0]]
+ind1 = np.logical_and(deltareco_pixgrid >= x[level[0]],deltareco_pixgrid <= x[level[1]])
+ind2 = deltareco_pixgrid > x[level[1]]
+inds = [np.count_nonzero(ind0),np.count_nonzero(ind1),np.count_nonzero(ind2)]
+bgclass = inds.index(max(inds)) #background clas
+match bgclass:
+    case 0:
+        deltareco_pixgrid_segmented[ind1] = 2
+        deltareco_pixgrid_segmented[ind2] = 2
+    case 1:
+        deltareco_pixgrid_segmented[ind0] = 1
+        deltareco_pixgrid_segmented[ind2] = 2
+    case 2:
+        deltareco_pixgrid_segmented[ind0] = 1
+        deltareco_pixgrid_segmented[ind1] = 1
+# fig, ax = plt.subplots()
+# cax = ax.imshow(deltareco_pixgrid_segmented, cmap='gray')
+# plt.colorbar(cax)
+# plt.axis('image')
+# plt.title('segmented linear difference reconstruction')
+#%%
+fig, ax = plt.subplots()
+cax = ax.imshow(deltareco_pixgrid_segmented, cmap='gray')
+plt.colorbar(cax)
+plt.axis('image')
+plt.figure()
+reconstruction = deltareco_pixgrid_segmented
+cax = plt.imshow(phantom, cmap='gray')
+plt.colorbar(cax)
 # %%
