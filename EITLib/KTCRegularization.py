@@ -75,10 +75,10 @@ if __name__ ==  '__main__':
     from dolfin import *
     import pickle
     L = 32
-    F = 40
+    F = 25
     n = 300
-    radius = 0.115
-    mesh = create_disk_mesh(radius, n, F)
+    radius = 1
+    #mesh = create_disk_mesh(radius, n, F)
     myeit = EITFenics(mesh, L, background_conductivity=0.8)
     H = FunctionSpace(myeit.mesh, 'CG', 1)
 
@@ -103,9 +103,10 @@ if __name__ ==  '__main__':
     mesh_file =XDMFFile('mesh_file_'+str(L)+'_'+str(n)+'.xdmf')
     mesh_file.write(myeit.mesh)
     mesh_file.close()
-
+    #%%
     file = open('smprior_'+str(L)+'_'+str(n)+'.p', 'wb')
     pickle.dump(smprior, file)
+    file.close()
 
 
 
