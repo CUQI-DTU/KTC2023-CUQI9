@@ -119,15 +119,36 @@ def main():
         Uel = mat_dict2["Uel"]
         Mpat = mat_dict2["Mpat"]
         deltaU = Uel - Uelref
+        #############################  Changed code
+        reg1 = 0.75
+        reg2 = 1e15
+        smprior.L = reg1*smprior.L
+        radius = np.max(np.linalg.norm(Mesh.g, axis = 1))
+        m = Mesh.g.shape[0]
+        num_el =  32 - (2*categoryNbr - 1)
+        electrodes = np.zeros((num_el, 2))
+        angle = 2*np.pi/Nel
+        for i in range(num_el):
+            electrodes[i] = radius*np.array([np.sin(i*angle), np.cos(i*angle)])
 
-        Usim = solver.SolveForward(sigma0, z) #forward solution at the linearization point
+
+        D = np.zeros(m)
+        for i in range(m):
+            v = Mesh.g[i]
+            dist = np.zeros(num_el)
+            for k, e in enumerate(electrodes):
+                dist[k] = np.linalg.norm(v - e)
+            D[i] = (np.linalg.norm(dist, ord = 3)**3)*np.linalg.norm(v)**4
+
+        D = np.diag(D)
+
+        mask = np.array(vincl, bool) # Mask the removed electrodes
+
+        deltaU = Uel - Uelref
         J = solver.Jacobian(sigma0, z)
-        #Jz = solver.Jacobianz(sigma0, z) #contact impedance jacobian - not used by the simple reconstruction algorithm
-
-        mask = np.array(vincl, bool)
-        deltareco = np.linalg.solve(J.T @ solver.InvGamma_n[np.ix_(mask,mask)] @ J + smprior.L.T @ smprior.L,J.T @ solver.InvGamma_n[np.ix_(mask,mask)] @ deltaU[vincl])
-        #sgplot = KTCPlotting.SigmaPlotter(Mesh, [5], 'jet')
-        # sgplot.basic2Dplot(deltareco, [], ['linear difference reconstruction'])
+        deltareco = np.linalg.solve(J.T @ solver.InvGamma_n[np.ix_(mask,mask)] @ J + smprior.L.T @ smprior.L + reg2*D.T@D,
+                                    J.T @ solver.InvGamma_n[np.ix_(mask,mask)] @ deltaU[vincl])
+        ###################################  End of changed code
 
         # interpolate the reconstruction into a pixel image
         deltareco_pixgrid = KTCAux.interpolateRecoToPixGrid(deltareco, Mesh)
