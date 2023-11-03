@@ -11,6 +11,7 @@ import pickle
 high_conductivity = 1e1
 low_conductivity = 1e-2
 background_conductivity = 0.8
+radius = 0.115
 
 # %% set up data
 case_name = 'case1'  # 'case1' , case3', 'case4', 'case_ref'
@@ -217,7 +218,7 @@ class Target_scipy:
             plt.figure()
             im = plot(self.myeit.inclusion)
             plt.colorbar(im)
-            plt.title("sigma")
+            plt.title("sigma "+str(self.counter))
             plt.show()
      
      
@@ -283,7 +284,8 @@ im = plot(res_fenics)
 plt.colorbar(im)
 # %%
 #project and segment
-X, Y = np.meshgrid(np.linspace(-1,1,256),np.linspace(-1,1,256) )
+
+X, Y = np.meshgrid(np.linspace(-radius,radius,256),np.linspace(-radius,radius,256) )
 Z = np.zeros_like(X)
 
 # interpolate to the grid:

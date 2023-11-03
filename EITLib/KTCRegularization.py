@@ -77,8 +77,8 @@ if __name__ ==  '__main__':
     L = 32
     F = 25
     n = 300
-    radius = 1
-    #mesh = create_disk_mesh(radius, n, F)
+    radius = 0.115
+    mesh = create_disk_mesh(radius, n, F)
     myeit = EITFenics(mesh, L, background_conductivity=0.8)
     H = FunctionSpace(myeit.mesh, 'CG', 1)
 
