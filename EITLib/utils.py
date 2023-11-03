@@ -240,7 +240,7 @@ class  EITFenics:
             q_i = q.vector().get_local()[:L]
             diff_q_data = self.D_sub@(q_i - background_q_i)\
                              - (u_measure[i*(L-1):(i+1)*(L-1)]\
-                - self.background_Uel_sim[i*(L-1):(i+1)*(L-1)])
+                - self.background_Uel_ref[i*(L-1):(i+1)*(L-1)])
             
             J +=0.5 * diff_q_data.T @ self.InvGamma_n[i*(L-1):(i+1)*(L-1),i*(L-1):(i+1)*(L-1)] @ diff_q_data
             #print J
@@ -347,7 +347,6 @@ class  EITFenics:
         # Define trial and test functions
         u = TrialFunction(V)
         v = TestFunction(V)
-    
         B = sigma * inner(nabla_grad(u[L]), nabla_grad(v[L])) * dx
     
         for i in range(L):
@@ -462,3 +461,5 @@ class MyTV:
         self.q0grad = project(grad(self.q0fun),self.V02)
         self.q0_denom = Denom(self.q0grad,self.delta)
         self.TV_op = assemble((self.q0_denom*inner(grad(self.p_trial),grad(self.p_test)))*dx) 
+
+
