@@ -1,3 +1,4 @@
+import argparse
 import numpy as np
 import scipy as sp
 import KTCFwd
@@ -9,7 +10,18 @@ import KTCAux
 import matplotlib.pyplot as plt
 import glob
 
-def main(inputFolder,outputFolder,categoryNbr):
+def main():
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("inputFolder")
+    parser.add_argument("outputFolder")
+    parser.add_argument("categoryNbr", type=int)
+    args = parser.parse_args()
+
+    inputFolder = args.inputFolder
+    outputFolder = args.outputFolder
+    categoryNbr = args.categoryNbr
+
     Nel = 32  # number of electrodes
     z = (1e-6) * np.ones((Nel, 1))  # contact impedances
     mat_dict = sp.io.loadmat(inputFolder + '/ref.mat') #load the reference data
@@ -161,3 +173,6 @@ def main(inputFolder,outputFolder,categoryNbr):
         mdic = {"reconstruction": reconstruction}
         print(outputFolder + '/' + str(objectno + 1) + '.mat')
         sp.io.savemat( outputFolder + '/' + str(objectno + 1) + '.mat',mdic)
+
+if __name__ == "__main__":
+    main()
