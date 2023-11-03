@@ -14,6 +14,8 @@ from scipy.sparse import diags
 from petsc4py import PETSc
 import scipy as sp
 
+
+
 def create_disk_mesh(radius, n, F):
     center = Point(0, 0)
     domain = Circle(center, radius, n)
@@ -21,8 +23,9 @@ def create_disk_mesh(radius, n, F):
     return mesh
 
 class  EITFenics:
-    def __init__(self, mesh, L=32, background_conductivity=0.8):
+    def __init__(self, mesh, L=32, background_conductivity=0.8, radius=0.115):
         self.L = L
+        self.radius = radius
 
         impedance_scalar = 1e-6
         self.impedance = []
@@ -118,7 +121,7 @@ class  EITFenics:
         plt.colorbar(im)  # norm= 'log'
         plt.savefig("phantom.png")
 
-        self.inclusion = Inclusion(phantom, degree=1)
+        self.inclusion = Inclusion(phantom, radius=self.radius, degree=1)
 
     def evaluate_target_external(self, injection_patterns, sigma_values, u_measure, compute_grad=None, num_inj_tested=None):
         print("* evaluate_target_external called")
@@ -398,10 +401,10 @@ class  EITFenics:
 
 
 class Inclusion(UserExpression):
-    def __init__(self, phantom, **kwargs):
+    def __init__(self, phantom, radius, **kwargs):
         super().__init__(**kwargs)
-        x_grid = np.linspace(-1, 1, 256)
-        y_grid = np.linspace(-1, 1, 256)
+        x_grid = np.linspace(-radius, radius, 256)
+        y_grid = np.linspace(-radius, radius, 256)
         self._interpolater = RegularGridInterpolator(
             (x_grid, y_grid), phantom, method="nearest")
 
@@ -442,7 +445,7 @@ class MyTV:
         self.p_trial = TrialFunction(self.V1)
         self.p_test = TestFunction(self.V1)
 
-        #self.L_op = dl.assemble(ufl.inner(self.p_trial, self.p_test)*dx)
+        #self.L_op = assemble(ufl.inner(self.p_trial, self.p_test)*dx)
         #self.TV_op = assemble(self.q_denom*ufl.inner(grad(self.p_trial),grad(self.p_test))*dx)
         self.TV_op = assemble((self.q0_denom*inner(grad(self.p_trial),grad(self.p_test)))*dx)
 
@@ -462,4 +465,26 @@ class MyTV:
         self.q0_denom = Denom(self.q0grad,self.delta)
         self.TV_op = assemble((self.q0_denom*inner(grad(self.p_trial),grad(self.p_test)))*dx) 
 
+import dolfin as dl
+class TV_reg:
+    def __init__(self, V, d, alpha, beta):
+        self.alpha   = Constant(alpha)
+        self.beta    = Constant(beta)
+        self.d       = d
+        self.m_tilde  = TestFunction(V)
+        self.m_hat = TrialFunction(V)
+        
+    def cost_reg(self, m):
+        return assemble(sqrt( inner(grad(m), grad(m)) + self.beta)*dx)
+
+    
+    def grad_reg(self, m):  
+        print("grad", grad)      
+        TVm = sqrt( inner(dl.grad(m), grad(m)) + self.beta)
+        grad_tv = assemble(Constant(1.)/TVm*inner(grad(m), grad(self.m_tilde))*dx)
+        
+        grad_val =  self.alpha*grad_tv
+        
+        return grad_val
+        
 

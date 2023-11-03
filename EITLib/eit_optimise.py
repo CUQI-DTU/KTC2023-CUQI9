@@ -6,45 +6,58 @@ import scipy.io as io
 import nlopt
 from KTCRegularization import SMPrior
 import pickle
+from scipy.ndimage import gaussian_filter
 
 #  set up parameters
 high_conductivity = 1e1
 low_conductivity = 1e-2
 background_conductivity = 0.8
 radius = 0.115
+difficulty_level = 1
 
 # %% set up data
 case_name = 'case1'  # 'case1' , case3', 'case4', 'case_ref'
-KTC23_dir = './fwd_CEM_eltved_christensen/KTC23_data/'
+input_dir = './input/'
+output_dir = './output/'
 
-Imatr = io.loadmat(KTC23_dir+"ref.mat")["Injref"]
+# %% Call KTC challange code to make reconstructions
+#import sys
+#sys.path.append("/Users/amal/Documents/research_code/CUQI-DTU/Collab-KTC2023/KTC_code")
 
-background_phantom_file_name = KTC23_dir+"true1.mat"
+#from main import main
+
+#main(input_dir,output_dir,difficulty_level)
+ 
+
+Imatr = io.loadmat(input_dir+"ref.mat")["Injref"]
+
+background_phantom_file_name = input_dir+"true1.mat"
 background_phantom = io.loadmat(background_phantom_file_name)["truth"]
 background_phantom[:] = 0
-background_Uel_ref = io.loadmat(KTC23_dir+"ref.mat")["Uelref"].flatten()
+background_Uel_ref = io.loadmat(input_dir+"ref.mat")["Uelref"].flatten()
 background_phantom_float = np.zeros(background_phantom.shape)
 background_phantom_float[:] = background_conductivity
 
 if case_name == 'case1':
-    phantom_file_name = KTC23_dir+"true1.mat"
+    phantom_file_name = input_dir+"true1.mat"
     phantom = io.loadmat(phantom_file_name)["truth"]
-    Uel_ref = io.loadmat(KTC23_dir+"data1.mat")["Uel"].flatten()
+    Uel_ref = io.loadmat(input_dir+"data1.mat")["Uel"].flatten()
+    recon_KTC = io.loadmat(output_dir+"1.mat")["reconstruction"]
 
 elif case_name == 'case2':
-    phantom_file_name = KTC23_dir+"true2.mat"
+    phantom_file_name = input_dir+"true2.mat"
     phantom = io.loadmat(phantom_file_name)["truth"]
-    Uel_ref = io.loadmat(KTC23_dir+"data2.mat")["Uel"].flatten()
+    Uel_ref = io.loadmat(input_dir+"data2.mat")["Uel"].flatten()
 
 elif case_name == 'case3':
-    phantom_file_name = KTC23_dir+"true3.mat"
+    phantom_file_name = input_dir+"true3.mat"
     phantom = io.loadmat(phantom_file_name)["truth"]
-    Uel_ref = io.loadmat(KTC23_dir+"data3.mat")["Uel"].flatten()
+    Uel_ref = io.loadmat(input_dir+"data3.mat")["Uel"].flatten()
 
 elif case_name == 'case4':
-    phantom_file_name = KTC23_dir+"true4.mat"
+    phantom_file_name = input_dir+"true4.mat"
     phantom = io.loadmat(phantom_file_name)["truth"]
-    Uel_ref = io.loadmat(KTC23_dir+"data4.mat")["Uel"].flatten()
+    Uel_ref = io.loadmat(input_dir+"data4.mat")["Uel"].flatten()
 
 elif case_name == 'case_ref':
 
@@ -220,6 +233,9 @@ class Target_scipy:
             plt.colorbar(im)
             plt.title("sigma "+str(self.counter))
             plt.show()
+
+        if self.counter == 30:
+            self.factor = 1
      
      
         print(self.v1+factor*self.v2, "(", self.v1, "+",factor, "*", self.v2,  ")")
@@ -265,8 +281,120 @@ class Target_scipy:
      
         return g1.flatten()+factor*g2.flatten()
  
-target_scipy = Target_scipy( myeit, smprior, Imatr, Uel_data, factor=1)
-x0 = 0.8*np.ones(myeit.H_sigma.dim())
+target_scipy = Target_scipy( myeit, smprior, Imatr, Uel_data, factor=1e-4)
+
+# Class Target_scipy_TV for TV regularization that uses TV_reg
+
+class Target_scipy_TV:
+    def __init__(self, myeit, tv_reg, Imatr, Uel_data, factor=1) -> None:
+        self.myeit = myeit
+        self.tv_reg = tv_reg
+        self.Imatr = Imatr
+        self.Uel_data = Uel_data
+        self.v1 = None
+        self.v2 = None
+        self.g1 = None
+        self.g2 = None
+        self.factor = factor
+        self.counter = 0
+
+    def obj_scipy(self,x):
+        x_fun = Function(self.myeit.H_sigma)
+        x_fun.vector().set_local(x)
+
+        self.counter +=1
+        self.v1, self.g1 =  self.myeit.evaluate_target_external(self.Imatr, x, self.Uel_data, compute_grad=True)
+        factor = self.factor
+        self.v2 = self.tv_reg.cost_reg(x_fun )
+        
+        print(self.counter)
+        if self.counter % 5 == 0:
+            plt.figure()
+            im = plot(self.myeit.inclusion)
+            plt.colorbar(im)
+            plt.title("sigma "+str(self.counter))
+            plt.show()
+
+         
+        print(self.v1+factor*self.v2, "(", self.v1, "+",factor, "*", self.v2,  ")")
+     
+        return self.v1+factor*self.v2
+ 
+    def obj_scipy_grad(self, x):
+        x_fun = Function(self.myeit.H_sigma)
+        x_fun.vector().set_local(x)
+        g1 = self.g1
+        g2 = self.tv_reg.grad_reg(x_fun).get_local()
+        self.g2 = g2
+        
+        factor = self.factor
+
+        if self.counter % 20 == 0:
+          g1_fenics = Function(self.myeit.H_sigma)
+          g1_fenics.vector()[:] = g1.flatten()
+          g2_fenics = Function(self.myeit.H_sigma)
+          g2_fenics.vector()[:] = g2.flatten()
+          g_fenics = Function(self.myeit.H_sigma)
+          g_fenics.vector()[:] = g1.flatten()+factor*g2.flatten()
+          plt.figure()
+          im = plot(g1_fenics)
+          plt.colorbar(im)
+          plt.title("grad 1")
+          plt.show()
+          plt.figure()
+          im = plot(g2_fenics)
+          plt.colorbar(im)
+          plt.title("grad 2")
+          plt.show()
+          plt.figure()
+          im = plot(g_fenics)
+          plt.colorbar(im)
+          plt.title("grad (1 + factor*2)")
+          plt.show()
+
+        return g1+factor*g2
+
+          
+        
+
+
+
+#%%
+#x0 = 0.8*np.ones(myeit.H_sigma.dim())
+# Create initial guess x0
+recon_KTC_float = np.zeros_like(recon_KTC)
+recon_KTC_float[:] = recon_KTC
+recon_KTC_float[recon_KTC_float == 0] = background_conductivity
+recon_KTC_float[recon_KTC_float == 1] = low_conductivity
+recon_KTC_float[recon_KTC_float == 2] = high_conductivity
+
+im = plt.imshow(np.flipud(recon_KTC_float))
+plt.title('KTC reconstruction, flipped for interpolation')
+plt.colorbar(im)
+#%%
+
+
+recon_background_flag = False
+
+if recon_background_flag:
+    recon_KTC_float_smoothed = gaussian_filter(recon_KTC_float, sigma=2)
+    plt.figure()
+    im = plt.imshow(recon_KTC_float_smoothed)
+    plt.colorbar(im)
+    
+    
+    x0_exp = Inclusion(np.fliplr(recon_KTC_float_smoothed.T), radius, degree=1)
+    x0_fun = interpolate(x0_exp, myeit.H_sigma)
+    plot(x0_fun)
+    x0 = x0_fun.vector().get_local()
+else:
+    x0 = 0.8 * np.ones(myeit.H_sigma.dim())
+
+
+tv_reg = TV_reg(myeit.H_sigma, None, 1, 1e-4)
+target_scipy_TV = Target_scipy_TV( myeit, tv_reg, Imatr, Uel_data, factor=1e6)
+#%%
+
 # fenics function with circular inclusion
 #myexp = Expression("x[0]*x[0] + x[1]*x[1] < r*r ? 0.8 : 0.8", r=0.115, degree=1)
 #my_x0 = interpolate(myexp, myeit.H_sigma)
@@ -274,7 +402,7 @@ x0 = 0.8*np.ones(myeit.H_sigma.dim())
 #plt.figure()
 #im = plot(my_x0)
 bounds = [(1e-5,100)]*myeit.H_sigma.dim()
-res = minimize(target_scipy.obj_scipy, x0, method='L-BFGS-B', jac=target_scipy.obj_scipy_grad, options={'disp': True, 'maxiter':500} , bounds=bounds)
+res = minimize(target_scipy_TV.obj_scipy, x0, method='L-BFGS-B', jac=target_scipy_TV.obj_scipy_grad, options={'disp': True, 'maxiter':500} , bounds=bounds)
 # %%
 #res_fenics = Function(myeit.H_sigma)
 #res_fenics.vector().set_local( res['x'])
@@ -299,7 +427,7 @@ for i in range(256):
 #%%
 
 from KTCScoring import Otsu2
-deltareco_pixgrid = np.flipud(Z)
+deltareco_pixgrid = np.flipud(np.log(Z))
 level, x = Otsu2(deltareco_pixgrid.flatten(), 256, 7)
 
 
@@ -331,6 +459,13 @@ fig, ax = plt.subplots()
 cax = ax.imshow(deltareco_pixgrid_segmented, cmap='gray')
 plt.colorbar(cax)
 plt.axis('image')
+# plot circle of radius 0.115
+theta = np.linspace(0, 2*np.pi, 100)
+x = radius*np.cos(theta)
+y = radius*np.sin(theta)
+plt.plot(x, y, color='red', linewidth=2)
+plt.title('segmented linear difference reconstruction')
+
 plt.figure()
 reconstruction = deltareco_pixgrid_segmented
 cax = plt.imshow(phantom, cmap='gray')
