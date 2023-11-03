@@ -112,7 +112,7 @@ def main():
     solver.SetInvGamma(noise_std1, noise_std2, Uelref)
 
     # Get a list of .mat files in the input folder
-    mat_files = glob.glob(inputFolder + '/data*.mat')
+    mat_files = sorted(glob.glob(inputFolder + '/data*.mat'))
     for objectno in range (0,len(mat_files)): #compute the reconstruction for each input file
         mat_dict2 = sp.io.loadmat(mat_files[objectno])
         Inj = mat_dict2["Inj"]
