@@ -9,6 +9,7 @@ from KTCRegularization import SMPrior
 import pickle
 from scipy.ndimage import gaussian_filter
 from segmentation import cv, scoring_function
+from scipy.optimize import minimize
 
 def NL_main(Uel_ref, background_Uel_ref, Imatr, difficulty_level):
 #  set up parameters
@@ -41,183 +42,10 @@ def NL_main(Uel_ref, background_Uel_ref, Imatr, difficulty_level):
     smprior = pickle.load(file)
     
     
-    class Target:
-        def __init__(self, myeit, x0, delta) -> None:
-            self.myeit = myeit
-            self.x0 = x0
-            q0 = Function(myeit.H_sigma)
-            q0.vector().set_local(x0)
-            self.tv_penalty = MyTV(q0, myeit.mesh, delta)
-        def eval(self, x, grad):
-            global eva_count
-            compute_grad = False
-            if grad.size >0:
-                compute_grad=True
-            v1, g1 =  self.myeit.evaluate_target_external(Imatr, x, Uel_data, compute_grad=compute_grad)
-    
-            # v2, g2 = smprior.evaluate_target_external(x, compute_grad=compute_grad) # replace this with tv
-            qk = Function(self.myeit.H_sigma)
-            qk.vector().set_local(x)
-            v2 = self.tv_penalty.eval_TV(qk)
-            if compute_grad:
-                g2 = self.tv_penalty.eval_grad(qk).get_local()
-            if grad.size >0:
-                grad[:] = g1.flatten()+g2.flatten()
-            print("[",eva_count,"]:", v1+v2, "(", v1, "+", v2, ")")
-            eva_count += 1
-    
-    
-            plt.figure()
-            im = plot(self.myeit.inclusion)
-            plt.colorbar(im)
-            plt.title("sigma")
-            plt.show()
-    
-            if (compute_grad):
-                g1_fenics = Function(self.myeit.H_sigma)
-                g1_fenics.vector()[:] = g1.flatten()
-                g2_fenics = Function(self.myeit.H_sigma)
-                g2_fenics.vector()[:] = g2.flatten()
-                g_fenics = Function(self.myeit.H_sigma)
-                g_fenics.vector()[:] = grad
-                plt.figure()
-                im = plot(g1_fenics)
-                plt.colorbar(im)
-                plt.title("grad 1")
-                plt.show()
-                plt.figure()
-                im = plot(g2_fenics)
-                plt.colorbar(im)
-                plt.title("grad 2")
-                plt.show()
-                plt.figure()
-                im = plot(g_fenics)
-                plt.colorbar(im)
-                plt.title("grad (1 + 2)")
-                plt.show()
-    
-            return v1+v2
-    
-    # %%
-    delta = 1e-3
-    # tv_penalty = MyTV(myeit.inclusion, myeit.mesh,delta)
-    
-    
-    
-    # %%
-    opt = nlopt.opt(nlopt.LD_SLSQP, myeit.H_sigma.dim())
-    opt.set_lower_bounds(1e-5*np.ones(myeit.H_sigma.dim()))
-    opt.set_upper_bounds(1e2*np.ones(myeit.H_sigma.dim()))
-    
-    
-    #x0= 10*np.ones(myeit.H_sigma.dim())
-    
-    
-    # %%
-    #my_target = Target(myeit, x0, delta)
-    
-    #opt.set_min_objective(my_target.eval)
-    #opt.set_xtol_rel(1e-4)
-    #opt.set_maxeval(100)
-    
-    
-    
-    #x = opt.optimize(x0)
-    #minf = opt.last_optimum_value()
-    #print('optimum at ', x)
-    #print('minimum value = ', minf)
-    #print('result code = ', opt.last_optimize_result())
-    #print('nevals = ', opt.get_numevals())
-    #print('initial step =', opt.get_initial_step(x0))
-    # %%
-    #myeit.inclusion.vector()[:] = x
-    #im = plot(myeit.inclusion)
-    #plt.colorbar(im)
-    # %%
-    
     # optimise using scipy
-    
-    # %%
-    
-    from scipy.optimize import minimize
-     
-    class Target_scipy:
-        def __init__(self, myeit, smprior, Imatr, Uel_data, factor=1) -> None:
-            self.myeit = myeit
-            self.smprior = smprior
-            self.Imatr = Imatr
-            self.Uel_data = Uel_data
-            self.v1 = None
-            self.v2 = None
-            self.g1 = None
-            self.g2 = None
-            self.factor = factor
-            self.counter = 0
-        def obj_scipy(self,x):
-            self.counter +=1
-            self.v1, self.g1 =  self.myeit.evaluate_target_external(self.Imatr, x, self.Uel_data, compute_grad=True)
-            factor = self.factor
-            self.v2, self.g2 = self.smprior.evaluate_target_external(x,  compute_grad=True)
-            
-            print(self.counter)
-            if self.counter % 5 == 0:
-                plt.figure()
-                im = plot(self.myeit.inclusion)
-                plt.colorbar(im)
-                plt.title("sigma "+str(self.counter))
-                plt.show()
-    
-            if self.counter == 30:
-                self.factor = 1
-         
-         
-            print(self.v1+factor*self.v2, "(", self.v1, "+",factor, "*", self.v2,  ")")
-         
-            return self.v1+factor*self.v2
-     
-        def obj_scipy_grad(self, x):
-            g1 = self.g1
-            g2 = self.g2
-            factor = self.factor
-    
-            if self.counter % 20 == 0:
-              g1_fenics = Function(self.myeit.H_sigma)
-              g1_fenics.vector()[:] = g1.flatten()
-              g2_fenics = Function(self.myeit.H_sigma)
-              g2_fenics.vector()[:] = g2.flatten()
-              g_fenics = Function(self.myeit.H_sigma)
-              g_fenics.vector()[:] = g1.flatten()+factor*g2.flatten()
-              plt.figure()
-              im = plot(g1_fenics)
-              plt.colorbar(im)
-              plt.title("grad 1")
-              plt.show()
-              plt.figure()
-              im = plot(g2_fenics)
-              plt.colorbar(im)
-              plt.title("grad 2")
-              plt.show()
-              plt.figure()
-              im = plot(g_fenics)
-              plt.colorbar(im)
-              plt.title("grad (1 + factor*2)")
-              plt.show()
-            # fig, axs = plt.subplots(1, 4)
-            # axs[0].plot(myeit.inclusion)
-            # axs[0].set_title("sigma")
-            # axs[1].plot(g1_fenics)
-            # axs[1].set_title("grad 1")
-            # axs[2].plot(g2_fenics)
-            # axs[2].set_title("grad 2")
-            # axs[3].plot(g_fenics)
-            # axs[3].set_title("grad = grad 1 + factor * grad 2")
-         
-            return g1.flatten()+factor*g2.flatten()
-     
-    target_scipy = Target_scipy( myeit, smprior, Imatr, Uel_data, factor=1e-4)
+
     
     # Class Target_scipy_TV for TV regularization that uses TV_reg
-    
     class Target_scipy_TV:
         def __init__(self, myeit, tv_reg, smprior, Imatr, Uel_data, factor=1, factor_sm=1) -> None:
             self.myeit = myeit
@@ -277,9 +105,6 @@ def NL_main(Uel_ref, background_Uel_ref, Imatr, difficulty_level):
                 plt.title("v3")
                 plt.show()
     
-                
-            
-    
              
             print(self.v1+factor*self.v2, "(", self.v1, "+", factor*self.v2,  "+", self.factor_sm*self.v3, ")")
          
@@ -328,15 +153,9 @@ def NL_main(Uel_ref, background_Uel_ref, Imatr, difficulty_level):
     
             return g1.flatten()+factor*g2.flatten()+factor_sm*g3.flatten()
     
-              
-            
-    
-    
-    
     #%%
     
     # Create initial guess x0
-    
     recon_background_flag = False
     
     if recon_background_flag:
@@ -368,13 +187,6 @@ def NL_main(Uel_ref, background_Uel_ref, Imatr, difficulty_level):
     tv_reg = TV_reg(myeit.H_sigma, None, 1, 1e-4)
     target_scipy_TV = Target_scipy_TV( myeit, tv_reg, smprior=smprior, Imatr=Imatr, Uel_data=Uel_data, factor=5e6, factor_sm=0.6)
     #%%
-    
-    # fenics function with circular inclusion
-    #myexp = Expression("x[0]*x[0] + x[1]*x[1] < r*r ? 0.8 : 0.8", r=0.115, degree=1)
-    #my_x0 = interpolate(myexp, myeit.H_sigma)
-    #x0 = my_x0.vector().get_local()
-    #plt.figure()
-    #im = plot(my_x0)
     # time:
     import time
     start = time.time()
@@ -384,15 +196,15 @@ def NL_main(Uel_ref, background_Uel_ref, Imatr, difficulty_level):
     print("time elapsed: ", end-start)
     print("time elapsed in minutes: ", (end-start)/60)
     # %%
-    #res_fenics = Function(myeit.H_sigma)
-    #res_fenics.vector().set_local( res['x'])
-    res_fenics = target_scipy.myeit.inclusion
+    res_fenics = Function(myeit.H_sigma)
+    res_fenics.vector().set_local( res['x'])
+    #res_fenics = target_scipy.myeit.inclusion
     plt.figure()
     im = plot(res_fenics)
     plt.colorbar(im)
-    # %%
-    #project and segment
     
+    # %%
+    #project and segment  
     X, Y = np.meshgrid(np.linspace(-radius,radius,256),np.linspace(-radius,radius,256) )
     Z = np.zeros_like(X)
     
@@ -411,8 +223,6 @@ def NL_main(Uel_ref, background_Uel_ref, Imatr, difficulty_level):
     level, x = Otsu2(deltareco_pixgrid.flatten(), 256, 7)
     
     
-    
-    
     deltareco_pixgrid_segmented = np.zeros_like(deltareco_pixgrid)
     ind0 = deltareco_pixgrid < x[level[0]]
     ind1 = np.logical_and(deltareco_pixgrid >= x[level[0]],deltareco_pixgrid <= x[level[1]])
@@ -429,15 +239,10 @@ def NL_main(Uel_ref, background_Uel_ref, Imatr, difficulty_level):
         case 2:
             deltareco_pixgrid_segmented[ind0] = 1
             deltareco_pixgrid_segmented[ind1] = 1
-    # fig, ax = plt.subplots()
-    # cax = ax.imshow(deltareco_pixgrid_segmented, cmap='gray')
-    # plt.colorbar(cax)
-    # plt.axis('image')
-    # plt.title('segmented linear difference reconstruction')
+
     #%%
     plt.figure()
     cax = plt.imshow(deltareco_pixgrid_segmented)
-    
     
     # plot circle of radius 0.115
     theta = np.linspace(0, 2*np.pi, 100)
@@ -457,19 +262,5 @@ def NL_main(Uel_ref, background_Uel_ref, Imatr, difficulty_level):
     plt.colorbar(im)
     plt.title('Chan Vese segmentation')
     
-    #%%
-    plt.figure()
-    cax = plt.imshow(phantom, cmap='gray')
-    plt.title('phantom')
-    plt.colorbar(cax)
-    # %%
-    #print("KTC score: ", scoring_function(recon_KTC,phantom))
-    print("CV score: ", scoring_function(cv_seg,phantom))
-    print("Otsu score: ", scoring_function(deltareco_pixgrid_segmented,phantom))
-    
-
-    return reconstruction_result
-    
-    
-    # %%
+    return cv_seg
     
