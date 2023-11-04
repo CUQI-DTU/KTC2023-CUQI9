@@ -199,15 +199,27 @@ class  EITFenics:
         print("solve adjoint")
         for i, q in enumerate(q_list):
 
+            #q_i = q.vector().get_local()[:L]
+            #q_background_i = self.background_q_list[i].vector().get_local()[:L]
+
+            background_u_measure_i = self.background_Uel_ref[i*(L-1):(i+1)*(L-1)]
+            background_q_i = self.background_q_list[i].vector().get_local()[:L]
+
+            u_measure_i = u_measure[i*(L-1):(i+1)*(L-1)]
             q_i = q.vector().get_local()[:L]
-            q_background_i = self.background_q_list[i].vector().get_local()[:L]
+
+            u_computed_i = self.D_sub@q_i 
+            background_u_computed_i = self.D_sub@background_q_i
+
+            mask = np.isnan(u_measure_i)
             # print shape of weight matrix
 
             rhs_sub =-self.D_sub.T@\
                 self.InvGamma_n[i*(L-1):(i+1)*(L-1),i*(L-1):(i+1)*(L-1)]@\
-                    (self.D_sub@(q_i- q_background_i)\
-                                     - (u_measure[i*(L-1):(i+1)*(L-1)]\
-                                     -self.background_Uel_ref[i*(L-1):(i+1)*(L-1)]) )
+                    ( (u_computed_i - background_u_computed_i) \
+                    - (u_measure_i - background_u_measure_i) )
+            rhs_sub[mask] = 0
+            
             rhs = Function(self.V).vector()
 
             rhs.set_local(np.concatenate((rhs_sub, np.zeros(self.V.dim()-L))))
@@ -239,11 +251,22 @@ class  EITFenics:
         J = 0
 
         for i, q in enumerate(q_list):
+
+            background_u_measure_i = self.background_Uel_ref[i*(L-1):(i+1)*(L-1)]
             background_q_i = self.background_q_list[i].vector().get_local()[:L]
+
+            u_measure_i = u_measure[i*(L-1):(i+1)*(L-1)]
             q_i = q.vector().get_local()[:L]
-            diff_q_data = self.D_sub@(q_i - background_q_i)\
-                             - (u_measure[i*(L-1):(i+1)*(L-1)]\
-                - self.background_Uel_ref[i*(L-1):(i+1)*(L-1)])
+
+            u_computed_i = self.D_sub@q_i 
+            background_u_computed_i = self.D_sub@background_q_i
+
+            mask = np.isnan(u_measure_i)
+            
+
+            diff_q_data = (u_computed_i-background_u_computed_i)\
+                             - (u_measure_i - background_u_measure_i)
+            diff_q_data[mask] = 0
             
             J +=0.5 * diff_q_data.T @ self.InvGamma_n[i*(L-1):(i+1)*(L-1),i*(L-1):(i+1)*(L-1)] @ diff_q_data
             #print J
