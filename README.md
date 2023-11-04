@@ -47,10 +47,10 @@ Scores for each phantom and difficulty 1,4 and 7:
 **TODO: ADD SCORES FOR EACH ALGORITHM**
 |   Phantom	| Level 1 	| Level 4 	| Level 7 	|
 |-----	|---	|---	|---	|
-|**a**||||
-|**b**||||
-|**c**||||
-|**d**|||||
+|**a**||
+|**b**||
+|**c**||
+|**d**||
 Scores have been computed using our own implementation of the scoring function based on scikit learn.
 
 ## License
