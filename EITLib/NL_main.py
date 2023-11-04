@@ -11,13 +11,14 @@ from scipy.ndimage import gaussian_filter
 from .segmentation import cv, scoring_function
 from scipy.optimize import minimize
 
-def NL_main(Uel_ref, background_Uel_ref, Imatr, difficulty_level):
+def NL_main(Uel_ref, background_Uel_ref, Imatr, difficulty_level, niter=50):
 #  set up parameters
     high_conductivity = 1e1
     low_conductivity = 1e-2
     background_conductivity = 0.8
     radius = 0.115
-    Uel_data =  Uel_ref
+    Uel_data =  Uel_ref.flatten()
+    background_Uel_ref = background_Uel_ref.flatten()
 
     # %% build eit-fenics model
     L = 32
@@ -39,6 +40,7 @@ def NL_main(Uel_ref, background_Uel_ref, Imatr, difficulty_level):
     #%% OBJECTIVE FUNCTION 
     # load smprior object
     file = open("./EITLib/smprior_32_300.p", 'rb')
+
     smprior = pickle.load(file)
     
     
@@ -191,7 +193,7 @@ def NL_main(Uel_ref, background_Uel_ref, Imatr, difficulty_level):
     import time
     start = time.time()
     bounds = [(1e-5,100)]*myeit.H_sigma.dim()
-    res = minimize(target_scipy_TV.obj_scipy, x0, method='L-BFGS-B', jac=target_scipy_TV.obj_scipy_grad, options={'disp': True, 'maxiter':50} , bounds=bounds)
+    res = minimize(target_scipy_TV.obj_scipy, x0, method='L-BFGS-B', jac=target_scipy_TV.obj_scipy_grad, options={'disp': True, 'maxiter':niter} , bounds=bounds)
     end = time.time()
     print("time elapsed: ", end-start)
     print("time elapsed in minutes: ", (end-start)/60)

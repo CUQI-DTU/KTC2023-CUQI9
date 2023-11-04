@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import glob
 from skimage.segmentation import chan_vese
 from EITLib import NL_main
+from EITLib.KTCRegularization_NLOpt import SMPrior
 
 #%%
 def main():
@@ -54,7 +55,8 @@ def main():
         Mpat = mat_dict2["Mpat"]
         deltaU = Uel - Uelref
         #############################  Changed code
-        deltareco_pixgrid = NL_main.NL_main(Uel, Uelref, Inj, categoryNbr)
+
+        deltareco_pixgrid = NL_main.NL_main(Uel, Uelref, Inj, categoryNbr, niter=6)
         
         # Do Chan-Vese segmentation
         mu = np.mean(deltareco_pixgrid)
