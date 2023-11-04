@@ -45,12 +45,12 @@ python main.py path/to/input/files path/to/output/files difficulty
 
 Scores for each phantom and difficulty 1,4 and 7:
 **TODO: ADD SCORES FOR EACH ALGORITHM**
-|   Phantom	|  Ref	| Level 1 	| Level 4 	| Level 7 	|
+|   Phantom	| Level 1 	| Level 4 	| Level 7 	|
 |-----	|---	|---	|---	|
-|**a**||||
-|**b**||||
-|**c**||||
-|**d**|||||
+|**a**|0.835|0.737|0.526|
+|**b**|0.761|0.563|0.499|
+|**c**|0.942|0.918|0.844|
+|**d**|0.767|0.774|0.751|
 Scores have been computed using our own implementation of the scoring function based on scikit learn.
 
 ## License
