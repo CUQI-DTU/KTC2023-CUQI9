@@ -7,6 +7,7 @@ import nlopt
 from KTCRegularization import SMPrior
 import pickle
 from scipy.ndimage import gaussian_filter
+from segmentation import cv, scoring_function
 
 #  set up parameters
 high_conductivity = 1e1
@@ -42,7 +43,8 @@ if case_name == 'case1':
     phantom_file_name = input_dir+"true1.mat"
     phantom = io.loadmat(phantom_file_name)["truth"]
     Uel_ref = io.loadmat(input_dir+"data1.mat")["Uel"].flatten()
-    recon_KTC = io.loadmat(output_dir+"1.mat")["reconstruction"]
+    recon_KTC_file = output_dir+"1.mat"
+    
 
 elif case_name == 'case2':
     phantom_file_name = input_dir+"true2.mat"
@@ -286,17 +288,25 @@ target_scipy = Target_scipy( myeit, smprior, Imatr, Uel_data, factor=1e-4)
 # Class Target_scipy_TV for TV regularization that uses TV_reg
 
 class Target_scipy_TV:
-    def __init__(self, myeit, tv_reg, Imatr, Uel_data, factor=1) -> None:
+    def __init__(self, myeit, tv_reg, smprior, Imatr, Uel_data, factor=1, factor_sm=1) -> None:
         self.myeit = myeit
         self.tv_reg = tv_reg
         self.Imatr = Imatr
         self.Uel_data = Uel_data
         self.v1 = None
         self.v2 = None
+        self.v3 = None
         self.g1 = None
         self.g2 = None
+        self.g3 = None
         self.factor = factor
+        self.factor_sm = factor_sm
+        self.smprior = smprior
         self.counter = 0
+        self.list_v1 = []
+        self.list_v2 = []
+        self.list_v3 = []
+
 
     def obj_scipy(self,x):
         x_fun = Function(self.myeit.H_sigma)
@@ -304,8 +314,17 @@ class Target_scipy_TV:
 
         self.counter +=1
         self.v1, self.g1 =  self.myeit.evaluate_target_external(self.Imatr, x, self.Uel_data, compute_grad=True)
+        self.v3, self.g3 = self.smprior.evaluate_target_external(x,  compute_grad=True)
         factor = self.factor
         self.v2 = self.tv_reg.cost_reg(x_fun )
+        #self.factor = 0.6*((self.v1/2)/self.v2)
+        #self.factor_sm = 0.6*((self.v1/2)/self.v3)
+        self.list_v1.append(np.log(self.v1))
+        self.list_v2.append(np.log(self.factor*self.v2))
+        self.list_v3.append(np.log(self.factor_sm*self.v3))
+
+
+
         
         print(self.counter)
         if self.counter % 5 == 0:
@@ -314,11 +333,26 @@ class Target_scipy_TV:
             plt.colorbar(im)
             plt.title("sigma "+str(self.counter))
             plt.show()
+            plt.figure()
+            plt.plot(self.list_v1)
+            plt.title("v1")
+            plt.show()
+            plt.figure()
+            plt.plot(self.list_v2)
+            plt.title("v2")
+            plt.show()
+            plt.figure()
+            plt.plot(self.list_v3)
+            plt.title("v3")
+            plt.show()
+
+            
+        
 
          
-        print(self.v1+factor*self.v2, "(", self.v1, "+",factor, "*", self.v2,  ")")
+        print(self.v1+factor*self.v2, "(", self.v1, "+", factor*self.v2,  "+", self.factor_sm*self.v3, ")")
      
-        return self.v1+factor*self.v2
+        return self.v1+factor*self.v2+self.factor_sm*self.v3
  
     def obj_scipy_grad(self, x):
         x_fun = Function(self.myeit.H_sigma)
@@ -326,16 +360,20 @@ class Target_scipy_TV:
         g1 = self.g1
         g2 = self.tv_reg.grad_reg(x_fun).get_local()
         self.g2 = g2
+        g3 = self.g3
         
         factor = self.factor
+        factor_sm = self.factor_sm
 
         if self.counter % 20 == 0:
           g1_fenics = Function(self.myeit.H_sigma)
           g1_fenics.vector()[:] = g1.flatten()
           g2_fenics = Function(self.myeit.H_sigma)
           g2_fenics.vector()[:] = g2.flatten()
+          g3_fenics = Function(self.myeit.H_sigma)
+          g3_fenics.vector()[:] = g3.flatten()
           g_fenics = Function(self.myeit.H_sigma)
-          g_fenics.vector()[:] = g1.flatten()+factor*g2.flatten()
+          g_fenics.vector()[:] = g1.flatten()+factor*g2.flatten()+factor_sm*g3.flatten()
           plt.figure()
           im = plot(g1_fenics)
           plt.colorbar(im)
@@ -346,13 +384,18 @@ class Target_scipy_TV:
           plt.colorbar(im)
           plt.title("grad 2")
           plt.show()
+          plt.figure() 
+          im = plot(g3_fenics)
+          plt.colorbar(im)
+          plt.title("grad 3")
           plt.figure()
           im = plot(g_fenics)
           plt.colorbar(im)
-          plt.title("grad (1 + factor*2)")
+          plt.title("grad (g1 + factor*g2 + factor_sm*g3)")
           plt.show()
 
-        return g1+factor*g2
+
+        return g1.flatten()+factor*g2.flatten()+factor_sm*g3.flatten()
 
           
         
@@ -360,24 +403,24 @@ class Target_scipy_TV:
 
 
 #%%
-#x0 = 0.8*np.ones(myeit.H_sigma.dim())
+
 # Create initial guess x0
-recon_KTC_float = np.zeros_like(recon_KTC)
-recon_KTC_float[:] = recon_KTC
-recon_KTC_float[recon_KTC_float == 0] = background_conductivity
-recon_KTC_float[recon_KTC_float == 1] = low_conductivity
-recon_KTC_float[recon_KTC_float == 2] = high_conductivity
-
-im = plt.imshow(np.flipud(recon_KTC_float))
-plt.title('KTC reconstruction, flipped for interpolation')
-plt.colorbar(im)
-#%%
-
 
 recon_background_flag = False
 
 if recon_background_flag:
-    recon_KTC_float_smoothed = gaussian_filter(recon_KTC_float, sigma=2)
+    recon_KTC = io.loadmat(recon_KTC_file)["reconstruction"]
+    recon_KTC_float = np.zeros_like(recon_KTC)
+    recon_KTC_float[:] = recon_KTC
+    recon_KTC_float[recon_KTC_float == 0] = background_conductivity
+    recon_KTC_float[recon_KTC_float == 1] = low_conductivity
+    recon_KTC_float[recon_KTC_float == 2] = high_conductivity
+    
+    im = plt.imshow(np.flipud(recon_KTC_float))
+    plt.title('KTC reconstruction, flipped for interpolation')
+    plt.colorbar(im)
+
+    recon_KTC_float_smoothed = gaussian_filter(recon_KTC_float, sigma=30)
     plt.figure()
     im = plt.imshow(recon_KTC_float_smoothed)
     plt.colorbar(im)
@@ -392,7 +435,7 @@ else:
 
 
 tv_reg = TV_reg(myeit.H_sigma, None, 1, 1e-4)
-target_scipy_TV = Target_scipy_TV( myeit, tv_reg, Imatr, Uel_data, factor=1e6)
+target_scipy_TV = Target_scipy_TV( myeit, tv_reg, smprior=smprior, Imatr=Imatr, Uel_data=Uel_data, factor=5e6, factor_sm=0.6)
 #%%
 
 # fenics function with circular inclusion
@@ -401,8 +444,14 @@ target_scipy_TV = Target_scipy_TV( myeit, tv_reg, Imatr, Uel_data, factor=1e6)
 #x0 = my_x0.vector().get_local()
 #plt.figure()
 #im = plot(my_x0)
+# time:
+import time
+start = time.time()
 bounds = [(1e-5,100)]*myeit.H_sigma.dim()
-res = minimize(target_scipy_TV.obj_scipy, x0, method='L-BFGS-B', jac=target_scipy_TV.obj_scipy_grad, options={'disp': True, 'maxiter':500} , bounds=bounds)
+res = minimize(target_scipy_TV.obj_scipy, x0, method='L-BFGS-B', jac=target_scipy_TV.obj_scipy_grad, options={'disp': True, 'maxiter':50} , bounds=bounds)
+end = time.time()
+print("time elapsed: ", end-start)
+print("time elapsed in minutes: ", (end-start)/60)
 # %%
 #res_fenics = Function(myeit.H_sigma)
 #res_fenics.vector().set_local( res['x'])
@@ -427,7 +476,7 @@ for i in range(256):
 #%%
 
 from KTCScoring import Otsu2
-deltareco_pixgrid = np.flipud(np.log(Z))
+deltareco_pixgrid = np.flipud(Z)
 level, x = Otsu2(deltareco_pixgrid.flatten(), 256, 7)
 
 
@@ -455,19 +504,38 @@ match bgclass:
 # plt.axis('image')
 # plt.title('segmented linear difference reconstruction')
 #%%
-fig, ax = plt.subplots()
-cax = ax.imshow(deltareco_pixgrid_segmented, cmap='gray')
-plt.colorbar(cax)
-plt.axis('image')
+plt.figure()
+cax = plt.imshow(deltareco_pixgrid_segmented)
+
+
 # plot circle of radius 0.115
 theta = np.linspace(0, 2*np.pi, 100)
-x = radius*np.cos(theta)
-y = radius*np.sin(theta)
-plt.plot(x, y, color='red', linewidth=2)
-plt.title('segmented linear difference reconstruction')
+cir_rad = 256/2
+x = cir_rad*np.cos(theta)
+y = cir_rad*np.sin(theta)
+plt.plot(x+cir_rad, y+cir_rad, color='red', linewidth=2)
+plt.title('segmented reconstruction')
+plt.axis('image')
+plt.colorbar(cax)
+
+#%% plot chan vesa segmentation
+cv_seg = cv( np.log(deltareco_pixgrid) + deltareco_pixgrid, mu=.1, lambda1=0.5, lambda2=0.5, init_level_set='checkerboard')
 
 plt.figure()
-reconstruction = deltareco_pixgrid_segmented
+im = plt.imshow(cv_seg, cmap='gray')
+plt.colorbar(im)
+plt.title('Chan Vese segmentation')
+
+#%%
+plt.figure()
 cax = plt.imshow(phantom, cmap='gray')
+plt.title('phantom')
 plt.colorbar(cax)
+# %%
+#print("KTC score: ", scoring_function(recon_KTC,phantom))
+print("CV score: ", scoring_function(cv_seg,phantom))
+print("Otsu score: ", scoring_function(deltareco_pixgrid_segmented,phantom))
+
+
+
 # %%
