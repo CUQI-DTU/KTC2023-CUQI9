@@ -3,12 +3,12 @@
 
 from dolfin import *
 from matplotlib import pyplot as plt
-from utils import *
+from .utils import *
 import scipy.io as io
-from KTCRegularization import SMPrior
+from .KTCRegularization_NLOpt import SMPrior
 import pickle
 from scipy.ndimage import gaussian_filter
-from segmentation import cv, scoring_function
+from .segmentation import cv, scoring_function
 from scipy.optimize import minimize
 
 def NL_main(Uel_ref, background_Uel_ref, Imatr, difficulty_level):
@@ -22,7 +22,7 @@ def NL_main(Uel_ref, background_Uel_ref, Imatr, difficulty_level):
     # %% build eit-fenics model
     L = 32
     mesh = Mesh()
-    with XDMFFile("mesh_file_32_300.xdmf") as infile:
+    with XDMFFile("./EITLib/mesh_file_32_300.xdmf") as infile:
         infile.read(mesh)
     myeit = EITFenics(mesh=mesh, L=L, background_conductivity=background_conductivity)
 
@@ -38,7 +38,7 @@ def NL_main(Uel_ref, background_Uel_ref, Imatr, difficulty_level):
     
     #%% OBJECTIVE FUNCTION 
     # load smprior object
-    file = open("smprior_32_300.p", 'rb')
+    file = open("./EITLib/smprior_32_300.p", 'rb')
     smprior = pickle.load(file)
     
     
@@ -217,50 +217,7 @@ def NL_main(Uel_ref, background_Uel_ref, Imatr, difficulty_level):
                 Z[i,j] = background_conductivity
     
     #%%
-    
-    from KTCScoring import Otsu2
     deltareco_pixgrid = np.flipud(Z)
-    level, x = Otsu2(deltareco_pixgrid.flatten(), 256, 7)
     
-    
-    deltareco_pixgrid_segmented = np.zeros_like(deltareco_pixgrid)
-    ind0 = deltareco_pixgrid < x[level[0]]
-    ind1 = np.logical_and(deltareco_pixgrid >= x[level[0]],deltareco_pixgrid <= x[level[1]])
-    ind2 = deltareco_pixgrid > x[level[1]]
-    inds = [np.count_nonzero(ind0),np.count_nonzero(ind1),np.count_nonzero(ind2)]
-    bgclass = inds.index(max(inds)) #background clas
-    match bgclass:
-        case 0:
-            deltareco_pixgrid_segmented[ind1] = 2
-            deltareco_pixgrid_segmented[ind2] = 2
-        case 1:
-            deltareco_pixgrid_segmented[ind0] = 1
-            deltareco_pixgrid_segmented[ind2] = 2
-        case 2:
-            deltareco_pixgrid_segmented[ind0] = 1
-            deltareco_pixgrid_segmented[ind1] = 1
-
-    #%%
-    plt.figure()
-    cax = plt.imshow(deltareco_pixgrid_segmented)
-    
-    # plot circle of radius 0.115
-    theta = np.linspace(0, 2*np.pi, 100)
-    cir_rad = 256/2
-    x = cir_rad*np.cos(theta)
-    y = cir_rad*np.sin(theta)
-    plt.plot(x+cir_rad, y+cir_rad, color='red', linewidth=2)
-    plt.title('segmented reconstruction')
-    plt.axis('image')
-    plt.colorbar(cax)
-    
-    #%% plot chan vesa segmentation
-    cv_seg = cv( np.log(deltareco_pixgrid) + deltareco_pixgrid, mu=.1, lambda1=0.5, lambda2=0.5, init_level_set='checkerboard')
-    
-    plt.figure()
-    im = plt.imshow(cv_seg, cmap='gray')
-    plt.colorbar(im)
-    plt.title('Chan Vese segmentation')
-    
-    return cv_seg
+    return deltareco_pixgrid
     
