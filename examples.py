@@ -67,4 +67,4 @@ if __name__ == "__main__":
         
         score_matrix.append(category_scores)
 
-    np.savetxt(folder_output_examples + "/" + "scores.txt", score_matrix, fmt='%4.3f')
+    np.savetxt(folder_output_examples + "/" + "scores.txt", np.array(score_matrix).T, fmt='%4.3f')
