@@ -45,7 +45,7 @@ python main.py path/to/input/files path/to/output/files difficulty
 
 Scores for each phantom and difficulty 1,4 and 7:
 **TODO: ADD SCORES FOR EACH ALGORITHM**
-|   Phantom	|  Ref	| Level 1 	| Level 4 	| Level 7 	|
+|   Phantom	| Level 1 	| Level 4 	| Level 7 	|
 |-----	|---	|---	|---	|
 |**a**||||
 |**b**||||
