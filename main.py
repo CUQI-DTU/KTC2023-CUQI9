@@ -56,12 +56,15 @@ def main():
         deltaU = Uel - Uelref
         #############################  Changed code
 
-        deltareco_pixgrid = NL_main.NL_main(Uel, Uelref, Inj, categoryNbr, niter=6)
+        deltareco_pixgrid = NL_main.NL_main(Uel, Uelref, Inj, categoryNbr, niter=50)
+
+        # save deltareco_pixgrid
+        np.savez(outputFolder + '/' + str(objectno + 1) + '.npz', deltareco_pixgrid=deltareco_pixgrid) 
         
         # Do Chan-Vese segmentation
         mu = np.mean(deltareco_pixgrid)
         # Feel free to play around with the parameters to see how they impact the result
-        cv = chan_vese(abs(deltareco_pixgrid), mu=0.1, lambda1=1, lambda2=1, tol=1e-6,
+        cv = chan_vese(deltareco_pixgrid + np.log(deltareco_pixgrid), mu=0.1, lambda1=1, lambda2=1, tol=1e-6,
                     max_num_iter=1000, dt=2.5, init_level_set="checkerboard",
                     extended_output=True)
 
