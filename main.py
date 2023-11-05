@@ -61,28 +61,7 @@ def main():
         # save deltareco_pixgrid
         np.savez(outputFolder + '/' + str(objectno + 1) + '.npz', deltareco_pixgrid=deltareco_pixgrid) 
         
-        # Do Chan-Vese segmentation
-        mu = np.mean(deltareco_pixgrid)
-        # Feel free to play around with the parameters to see how they impact the result
-        cv = chan_vese(deltareco_pixgrid + np.log(deltareco_pixgrid), mu=0.1, lambda1=1, lambda2=1, tol=1e-6,
-                    max_num_iter=1000, dt=2.5, init_level_set="checkerboard",
-                    extended_output=True)
-
-        labeled_array, num_features = sp.ndimage.label(cv[0])
-        # Initialize a list to store masks for each region
-        region_masks = []
-
-        # Loop through each labeled region
-        deltareco_pixgrid_segmented = np.zeros((256,256))
-
-        for label in range(1, num_features + 1):
-            # Create a mask for the current region
-            region_mask = labeled_array == label
-            region_masks.append(region_mask)
-            if np.mean(deltareco_pixgrid[region_mask]) < mu:
-                deltareco_pixgrid_segmented[region_mask] = 1
-            else:
-                deltareco_pixgrid_segmented[region_mask] = 2
+        deltareco_pixgrid_segmented = KTCScoring.cv_NLOpt(deltareco_pixgrid, log_par=1.5, linear_par=1, exp_par=0)
 
         ###################################  End of changed code
         reconstruction = deltareco_pixgrid_segmented
