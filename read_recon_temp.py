@@ -12,10 +12,10 @@ import KTCScoring
 
 #%%
 
-
+dir_output = 'Output7/'
 #%%
 for i in range(1,5):
-    recon_file = sp.io.loadmat('Output1/' + str(i) +'.mat')
+    recon_file = sp.io.loadmat(dir_output + str(i) +'.mat')
 
 
     plt.figure()
@@ -32,7 +32,7 @@ for i in range(1,5):
 
     # load original reconstruction
     plt.figure()
-    orig_recon = np.load('Output1/' + str(i) +'.npz')['deltareco_pixgrid']
+    orig_recon = np.load(dir_output + str(i) +'.npz')['deltareco_pixgrid']
     im = plt.imshow(np.log(orig_recon))
     plt.title('log orig recon conductivity '+str(i))
     plt.colorbar(im)
@@ -40,14 +40,14 @@ for i in range(1,5):
     # load KTC challange recon
 
     # segment with chan-vese
-    plt.figure()
-    seg = KTCScoring.cv_NLOpt(orig_recon, log_par=1.5, linear_par=1, exp_par=0)
-    im = plt.imshow(seg)
-    plt.colorbar(im)
-    plt.title('chan-vese segmentation '+str(i))
+    #plt.figure()
+    #seg = KTCScoring.cv_NLOpt(orig_recon, log_par=1.5, linear_par=1, exp_par=0)
+    #im = plt.imshow(seg)
+    #plt.colorbar(im)
+    #plt.title('chan-vese segmentation '+str(i))
     
     print(i)
-    print(scoring_function(phantom_file['truth'], seg))
+    print(scoring_function(phantom_file['truth'], recon_file['reconstruction']))
 
     
 
