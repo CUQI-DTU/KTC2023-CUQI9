@@ -11,7 +11,7 @@ from scipy.ndimage import gaussian_filter
 from .segmentation import cv, scoring_function
 from scipy.optimize import minimize
 
-def NL_main(Uel_ref, background_Uel_ref, Imatr, difficulty_level, niter=50):
+def NL_main(Uel_ref, background_Uel_ref, Imatr, difficulty_level, niter=50, output_dir_name=None):
 #  set up parameters
     high_conductivity = 1e1
     low_conductivity = 1e-2
@@ -198,6 +198,11 @@ def NL_main(Uel_ref, background_Uel_ref, Imatr, difficulty_level, niter=50):
     end = time.time()
     print("time elapsed: ", end-start)
     print("time elapsed in minutes: ", (end-start)/60)
+    # save v1_list, v2_list and v3_list
+    v1_list = np.array(target_scipy_TV.list_v1)
+    v2_list = np.array(target_scipy_TV.list_v2)
+    v3_list = np.array(target_scipy_TV.list_v3)
+    np.savez(output_dir_name+"/v_list.npz", v1_list=v1_list, v2_list=v2_list, v3_list=v3_list)
     # %%
     res_fenics = Function(myeit.H_sigma)
     res_fenics.vector().set_local( res['x'])
