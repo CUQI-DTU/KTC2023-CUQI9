@@ -12,9 +12,9 @@ import KTCScoring
 
 #%%
 
-dir_output = 'Output7/'
+dir_output = 'Output4/'
 #%%
-for i in range(1,5):
+for i in range(1,2):
     recon_file = sp.io.loadmat(dir_output + str(i) +'.mat')
 
 
@@ -33,8 +33,8 @@ for i in range(1,5):
     # load original reconstruction
     plt.figure()
     orig_recon = np.load(dir_output + str(i) +'.npz')['deltareco_pixgrid']
-    im = plt.imshow(np.log(orig_recon))
-    plt.title('log orig recon conductivity '+str(i))
+    im = plt.imshow(orig_recon)
+    plt.title('orig recon conductivity '+str(i))
     plt.colorbar(im)
 
     # load KTC challange recon

@@ -5,7 +5,7 @@ import matplotlib.image
 import os
 from skimage.metrics import structural_similarity as ssim
 
-inclusion_list = [1,2,3,4]
+inclusion_list = [1]
 categories_list = [1,4,7]
 
 folder_ground_truth = "GroundTruths"
