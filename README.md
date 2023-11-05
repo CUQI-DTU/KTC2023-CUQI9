@@ -17,10 +17,9 @@ DTU: Technical University of Denmark, Department of Applied Mathematics and Comp
 
 ## Description of the algorithm
 
-We have used the provided code for the EIT image reconstruction with the following modifications:
-- The Otsu segmentation algorithm has been replaced by the Chan-Vese segmentation algorithm from scikit-image.
-- Additional generalized Tikhonov regularization has been added to penalize more when close to the missing electrodes (and boundary). The regularization matrix is a diagonal matrix. For example, for difficulty level 5, the diagonal elements mapped to image space look as in the image below:
-![](results/reg1.png)
+We built a complete electrode model CEM by extending the model provided in [the linked BSc. thesis](https://findit.dtu.dk/en/catalog/56d754b8bf19455102000781). We also built the framework to solve a nonlinear optimization problem of inferring the conductivity $\sigma$ using a least-square optimization approach. We added two regularization terms. One is TV, based on [the linked tutorial](https://uvilla.github.io/cmis_labs/notebooks/ImageDenoising_TV.html), and the other one is Tikhonov, based on the regularization class `SMPrior` provided by the competition. We used `scipy` L-BFGS-B to solve the optimization problem and segment with Chan-Vese segmentation method from `scikit-image`. Our implementation uses `FEniCS`, a finite element method library.
+
+
 
 ## Installation instructions
 To run our EIT image reconstruction algorithm, you will need:
@@ -28,6 +27,8 @@ To run our EIT image reconstruction algorithm, you will need:
 - Python 3.x
 - Required Python libraries (listed in `requirements.txt`)
 - Access to the provided dataset (not included in this repository)
+
+Note that you will need to install `FEniCS 2019.1.0.` One way to do it is to follow Anaconda installation instructions in this [link](https://fenicsproject.org/download/archive/). 
 
 ## Usage instructions
 
@@ -47,10 +48,10 @@ Scores for each phantom and difficulty 1,4 and 7:
 
 |   Phantom	| Level 1 	| Level 4 	| Level 7 	|
 |-----	|---	|---	|---	|
-|**a**|0.835|0.737|0.526|
-|**b**|0.761|0.563|0.499|
-|**c**|0.942|0.918|0.844|
-|**d**|0.767|0.774|0.751|
+|**a**| 0.730|0.587|0.246
+|**b**| 0.591|0.331|0.243
+|**c**| 0.682|0.671|0.150
+|**d**| 0.622|0.676|0.593
 
 
 Scores have been computed using our own implementation of the scoring function based on scikit learn.
