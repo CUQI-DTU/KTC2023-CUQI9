@@ -12,6 +12,7 @@ import glob
 from skimage.segmentation import chan_vese
 from EITLib import NL_main
 from EITLib.KTCRegularization_NLOpt import SMPrior
+import os
 
 #%%
 def main():
@@ -25,6 +26,10 @@ def main():
     inputFolder = args.inputFolder
     outputFolder = args.outputFolder
     categoryNbr = args.categoryNbr
+
+    # if output folder does not exist, create it
+    if not os.path.exists(outputFolder):
+        os.makedirs(outputFolder)
 
     Nel = 32  # number of electrodes
     z = (1e-6) * np.ones((Nel, 1))  # contact impedances
@@ -56,7 +61,7 @@ def main():
         deltaU = Uel - Uelref
         #############################  Changed code
 
-        deltareco_pixgrid = NL_main.NL_main(Uel, Uelref, Inj, categoryNbr, niter=50)
+        deltareco_pixgrid = NL_main.NL_main(Uel, Uelref, Inj, categoryNbr, niter=70, output_dir_name=outputFolder)
 
         # save deltareco_pixgrid
         np.savez(outputFolder + '/' + str(objectno + 1) + '.npz', deltareco_pixgrid=deltareco_pixgrid) 
