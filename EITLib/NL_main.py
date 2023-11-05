@@ -43,30 +43,89 @@ def NL_main(Uel_ref, background_Uel_ref, Imatr, difficulty_level, niter=50, outp
 
     smprior = pickle.load(file)
     
+    # Regularization term from CUQI1 submission
+    #############################  Changed code
+
+    class reg_CUQI1:
+        def __init__(self, radius, mesh, difficulty_level, H) -> None:
+
+            d2v = dof_to_vertex_map(H)
+
+            radius = radius
+            Nel = 32
+            m = mesh.num_vertices()
+            num_el =  Nel - (2*difficulty_level - 1)
+            electrodes = np.zeros((num_el, 2))
+            angle = 2*np.pi/Nel
+            for i in range(num_el):
+                electrodes[i] = radius*np.array([np.sin(i*angle), np.cos(i*angle)])
+            D = np.zeros(m)
+            mesh_coordinate = mesh.coordinates()[d2v]
+            for i in range(m):
+                v = mesh_coordinate[i,:]
+                dist = np.zeros(num_el)
+                for k, e in enumerate(electrodes):
+                    dist[k] = np.linalg.norm(v - e)
+                D[i] = (np.linalg.norm(dist, ord = 3)**3)*np.linalg.norm(v)**4
+            self.D = np.diag(D)
+
+
+        def evaluate_target_external(self, x):
+            return 0.5*np.linalg.norm(self.D@x)**2
+        
+        def evaluate_grad_external(self, x):
+            return self.D.T@self.D@x
+            
+        # define regularization term
+    reg_CUQI1_obj = reg_CUQI1(radius, myeit.mesh, difficulty_level, myeit.H_sigma)
+            
+        
+    #reg = 0.75
+    #reg2 = 1e15
+    # plot the diagonal of reg_CUQI1_obj
+
     
-    # optimise using scipy
+    #plt.figure()
+    #reg_CUQI1_fun = Function(myeit.H_sigma)
+    #reg_CUQI1_fun.vector().set_local( reg_CUQI1_obj.D.diagonal())
+    #im =plot(reg_CUQI1_fun)
+    #plt.colorbar(im)
+    #plt.show()
+    #exit()
+
+
+########
 
     
     # Class Target_scipy_TV for TV regularization that uses TV_reg
     class Target_scipy_TV:
-        def __init__(self, myeit, tv_reg, smprior, Imatr, Uel_data, factor=1, factor_sm=1) -> None:
+        def __init__(self, myeit, tv_reg, reg_CUQI1_obj, smprior, Imatr, Uel_data, factor=1, factor_sm=1, factor_CUQI1=1e15) -> None:
             self.myeit = myeit
             self.tv_reg = tv_reg
             self.Imatr = Imatr
             self.Uel_data = Uel_data
+
             self.v1 = None
             self.v2 = None
             self.v3 = None
+            self.v4 = None
             self.g1 = None
             self.g2 = None
             self.g3 = None
+            self.g4 = None
+
             self.factor = factor
             self.factor_sm = factor_sm
             self.smprior = smprior
+
+            self.reg_CUQI1_obj = reg_CUQI1_obj
+            self.factor_CUQI1 = factor_CUQI1
+
             self.counter = 0
             self.list_v1 = []
             self.list_v2 = []
             self.list_v3 = []
+            self.list_v4 = []
     
     
         def obj_scipy(self,x):
@@ -78,11 +137,17 @@ def NL_main(Uel_ref, background_Uel_ref, Imatr, difficulty_level, niter=50, outp
             self.v3, self.g3 = self.smprior.evaluate_target_external(x,  compute_grad=True)
             factor = self.factor
             self.v2 = self.tv_reg.cost_reg(x_fun )
+
+            factor_CUQI1 = self.factor_CUQI1
+            self.v4 = self.reg_CUQI1_obj.evaluate_target_external(x)
+
+
             #self.factor = 0.6*((self.v1/2)/self.v2)
             #self.factor_sm = 0.6*((self.v1/2)/self.v3)
             self.list_v1.append(np.log(self.v1))
             self.list_v2.append(np.log(self.factor*self.v2))
             self.list_v3.append(np.log(self.factor_sm*self.v3))
+            self.list_v4.append(np.log(self.factor_CUQI1*self.v4))
     
     
     
@@ -107,11 +172,15 @@ def NL_main(Uel_ref, background_Uel_ref, Imatr, difficulty_level, niter=50, outp
                 plt.plot(self.list_v3)
                 plt.title("v3")
                 plt.show()
+                plt.figure()
+                plt.plot(self.list_v4)
+                plt.title("v4")
+                plt.show()
     
              
-            print(self.v1+factor*self.v2, "(", self.v1, "+", factor*self.v2,  "+", self.factor_sm*self.v3, ")")
+            print(self.v1+factor*self.v2, "(", self.v1, "+", factor*self.v2,  "+", self.factor_sm*self.v3, "+", self.factor_CUQI1*self.v4, ")")
          
-            return self.v1+factor*self.v2+self.factor_sm*self.v3
+            return self.v1+factor*self.v2+self.factor_sm*self.v3+self.factor_CUQI1*self.v4
      
         def obj_scipy_grad(self, x):
             x_fun = Function(self.myeit.H_sigma)
@@ -120,9 +189,12 @@ def NL_main(Uel_ref, background_Uel_ref, Imatr, difficulty_level, niter=50, outp
             g2 = self.tv_reg.grad_reg(x_fun).get_local()
             self.g2 = g2
             g3 = self.g3
+            g4 = self.reg_CUQI1_obj.evaluate_grad_external(x)
             
             factor = self.factor
             factor_sm = self.factor_sm
+            factor_CUQI1 = self.factor_CUQI1
+
             plot_flag = False
             if self.counter % 20 == 0 and plot_flag:
               g1_fenics = Function(self.myeit.H_sigma)
@@ -154,7 +226,7 @@ def NL_main(Uel_ref, background_Uel_ref, Imatr, difficulty_level, niter=50, outp
               plt.show()
     
     
-            return g1.flatten()+factor*g2.flatten()+factor_sm*g3.flatten()
+            return g1.flatten()+factor*g2.flatten()+factor_sm*g3.flatten()+factor_CUQI1*g4.flatten()
     
     #%%
     
@@ -188,7 +260,7 @@ def NL_main(Uel_ref, background_Uel_ref, Imatr, difficulty_level, niter=50, outp
     
     
     tv_reg = TV_reg(myeit.H_sigma, None, 1, 1e-4)
-    target_scipy_TV = Target_scipy_TV( myeit, tv_reg, smprior=smprior, Imatr=Imatr, Uel_data=Uel_data, factor=5e6, factor_sm=0.6)
+    target_scipy_TV = Target_scipy_TV( myeit, tv_reg, reg_CUQI1_obj, smprior=smprior, Imatr=Imatr, Uel_data=Uel_data, factor=5e6, factor_sm=0.6, factor_CUQI1=1e11)
     #%%
     # time:
     import time
