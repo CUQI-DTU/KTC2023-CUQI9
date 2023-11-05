@@ -1,6 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.signal as sps
+import scipy as sp
+from skimage.segmentation import chan_vese
 
 def Otsu(image, nvals, figno):
     # binary Otsu's method for finding the segmentation level for sigma
