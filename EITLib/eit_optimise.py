@@ -4,7 +4,7 @@ from matplotlib import pyplot as plt
 from utils import *
 import scipy.io as io
 import nlopt
-from KTCRegularization import SMPrior
+from KTCRegularization_NLOpt import SMPrior
 import pickle
 from scipy.ndimage import gaussian_filter
 from segmentation import cv, scoring_function
