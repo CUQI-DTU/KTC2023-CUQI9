@@ -17,7 +17,7 @@ DTU: Technical University of Denmark, Department of Applied Mathematics and Comp
 
 ## Description of the algorithm
 
-We built a complete electrode model CEM by extending the model provided in [the linked BSc. thesis](https://findit.dtu.dk/en/catalog/56d754b8bf19455102000781). We also built the framework to solve a nonlinear optimization problem of inferring the conductivity $\sigma$ using a least-square optimization approach. We added two regularization terms. One is TV, based on [the linked tutorial](https://uvilla.github.io/cmis_labs/notebooks/ImageDenoising_TV.html), and the other one is Tikhonov, based on the regularization class `SMPrior` provided by the competition. We used `scipy` L-BFGS-B to solve the optimization problem and segment with Chan-Vese segmentation method from `scikit-image`. Our implementation uses `FEniCS`, a finite element method library.
+We built a complete electrode model CEM by extending the model provided in [the linked BSc. thesis](https://findit.dtu.dk/en/catalog/56d754b8bf19455102000781). We also built the framework to solve a nonlinear optimization problem of inferring the conductivity $\sigma$ using a least-square optimization approach. We added three regularization terms. One is TV, based on [the linked tutorial](https://uvilla.github.io/cmis_labs/notebooks/ImageDenoising_TV.html). The second one is Tikhonov, based on the regularization class `SMPrior` provided by the competition. The third regularization term is a generalized Tikhonov regularization that penalizes more when close to the missing electrodes (and boundary). We used `scipy` L-BFGS-B to solve the optimization problem and segment with Chan-Vese segmentation method from `scikit-image`. Our implementation uses `FEniCS`, a finite element method library.
 
 
 
@@ -40,18 +40,15 @@ python main.py path/to/input/files path/to/output/files difficulty
 |  Phantom 	|  Ref	| Level 1 	| Level 4 	| Level 7 	|
 |----------	|-----	|---	|---	|---	|
 |**a**| ![](results/01.png)	| ![](results/11.png)	|  ![](results/41.png) 	|   ![](results/71.png)	|   
-|**b**| ![](results/02.png)	| ![](results/12.png)	|  ![](results/42.png) 	|   ![](results/72.png)	|
-|**c**| ![](results/03.png)	| ![](results/13.png)	|  ![](results/43.png) 	|   ![](results/73.png)	|
-|**d**| ![](results/04.png)	| ![](results/14.png)	|  ![](results/44.png) 	|   ![](results/74.png)	|  
+
 
 Scores for each phantom and difficulty 1,4 and 7:
 
 |   Phantom	| Level 1 	| Level 4 	| Level 7 	|
 |-----	|---	|---	|---	|
-|**a**| 0.730|0.587|0.246
-|**b**| 0.591|0.331|0.243
-|**c**| 0.682|0.671|0.150
-|**d**| 0.622|0.676|0.593
+|**a**| 0.768|0.676|0.267
+
+
 
 
 Scores have been computed using our own implementation of the scoring function based on scikit learn.
