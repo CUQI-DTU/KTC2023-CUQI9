@@ -1,3 +1,4 @@
+#%%
 import numpy as np
 import scipy as sp
 import matplotlib.image
@@ -53,11 +54,11 @@ if __name__ == "__main__":
         category_scores = []
         
         print("Reconstructing category number: " + str(category))
-        os.system("python3 main.py " + folder_training_data + " " + folder_reconstruction + " " + str(category))
+
         # main.main(folder_training_data, folder_reconstruction, category)
         for inclusion in inclusion_list:
             ## Save example image
-            reconstruction = load_mat(folder_reconstruction, inclusion, ground_truth=False)
+            reconstruction = load_mat(folder_reconstruction+str(category), inclusion, ground_truth=False)
             file_name = folder_output_examples + "/" + str(category) + str(inclusion) + ".png"
             save_as_image(reconstruction, file_name)
             
