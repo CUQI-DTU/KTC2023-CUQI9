@@ -50,6 +50,7 @@ class  EITFenics:
         if meas_data is None:
             raise ValueError("meas_data must be provided")
         meas = meas_data
+        meas[np.isnan(meas)] = 0
 
  
         var_meas = np.power(((noise_percentage / 100) * (np.abs(meas))),2)
@@ -214,12 +215,13 @@ class  EITFenics:
             mask = np.isnan(u_measure_i)
             # print shape of weight matrix
 
-            rhs_sub =-self.D_sub.T@\
-                self.InvGamma_n[i*(L-1):(i+1)*(L-1),i*(L-1):(i+1)*(L-1)]@\
+            rhs_sub_term1 = self.InvGamma_n[i*(L-1):(i+1)*(L-1),i*(L-1):(i+1)*(L-1)]@\
                     ( (u_computed_i - background_u_computed_i) \
                     - (u_measure_i - background_u_measure_i) )
-            rhs_sub[mask] = 0
             
+            rhs_sub_term1[mask] = 0
+            rhs_sub = -self.D_sub.T@rhs_sub_term1
+
             rhs = Function(self.V).vector()
 
             rhs.set_local(np.concatenate((rhs_sub, np.zeros(self.V.dim()-L))))
@@ -261,14 +263,24 @@ class  EITFenics:
             u_computed_i = self.D_sub@q_i 
             background_u_computed_i = self.D_sub@background_q_i
 
+            #print("u_measure_i",u_measure_i)
             mask = np.isnan(u_measure_i)
+            
             
 
             diff_q_data = (u_computed_i-background_u_computed_i)\
                              - (u_measure_i - background_u_measure_i)
+            #print("diff_q_data before mask",diff_q_data)
             diff_q_data[mask] = 0
+            #print("diff_q_data after mask",diff_q_data)
+            InvGamma_n_k = self.InvGamma_n[i*(L-1):(i+1)*(L-1),i*(L-1):(i+1)*(L-1)] 
             
-            J +=0.5 * diff_q_data.T @ self.InvGamma_n[i*(L-1):(i+1)*(L-1),i*(L-1):(i+1)*(L-1)] @ diff_q_data
+            #print("diagonal of InvGamma_n",np.diag(InvGamma_n_k.todense())) 
+            J_k = 0.5 * diff_q_data.T @ InvGamma_n_k @ diff_q_data
+            
+            #print("J_k",J_k)
+            
+            J += J_k
             #print J
 
 
