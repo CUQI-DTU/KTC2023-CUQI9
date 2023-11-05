@@ -88,7 +88,8 @@ def NL_main(Uel_ref, background_Uel_ref, Imatr, difficulty_level, niter=50):
     
             
             print(self.counter)
-            if self.counter % 5 == 0:
+            plot_flag = False
+            if self.counter % 5 == 0 and plot_flag:
                 plt.figure()
                 im = plot(self.myeit.inclusion)
                 plt.colorbar(im)
@@ -122,8 +123,8 @@ def NL_main(Uel_ref, background_Uel_ref, Imatr, difficulty_level, niter=50):
             
             factor = self.factor
             factor_sm = self.factor_sm
-    
-            if self.counter % 20 == 0:
+            plot_flag = False
+            if self.counter % 20 == 0 and plot_flag:
               g1_fenics = Function(self.myeit.H_sigma)
               g1_fenics.vector()[:] = g1.flatten()
               g2_fenics = Function(self.myeit.H_sigma)
@@ -201,9 +202,11 @@ def NL_main(Uel_ref, background_Uel_ref, Imatr, difficulty_level, niter=50):
     res_fenics = Function(myeit.H_sigma)
     res_fenics.vector().set_local( res['x'])
     #res_fenics = target_scipy.myeit.inclusion
-    plt.figure()
-    im = plot(res_fenics)
-    plt.colorbar(im)
+    plot_flag = False
+    if plot_flag:
+      plt.figure()
+      im = plot(res_fenics)
+      plt.colorbar(im)
     
     # %%
     #project and segment  
