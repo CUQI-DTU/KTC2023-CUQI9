@@ -41,14 +41,14 @@ def otsu(deltareco_pixgrid):
     inds = [np.count_nonzero(ind0),np.count_nonzero(ind1),np.count_nonzero(ind2)]
     bgclass = inds.index(max(inds)) #background class
 
-    match bgclass:
-        case 0:
+
+    if bgclass == 0:
             deltareco_pixgrid_segmented[ind1] = 2
             deltareco_pixgrid_segmented[ind2] = 2
-        case 1:
+    if bgclass ==  1:
             deltareco_pixgrid_segmented[ind0] = 1
             deltareco_pixgrid_segmented[ind2] = 2
-        case 2:
+    if bgclass == 2:
             deltareco_pixgrid_segmented[ind0] = 1
             deltareco_pixgrid_segmented[ind1] = 1
 
