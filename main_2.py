@@ -34,7 +34,7 @@ def main():
     outputFolder = args.outputFolder
     categoryNbr = args.categoryNbr
 
-    niter = args.categoryNbr 
+    niter = args.niter 
 
     TV_factor = args.TV_factor
     Tikhonov_factor = args.Tikhonov_factor
