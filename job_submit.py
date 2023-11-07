@@ -41,16 +41,14 @@ def submit(jobid,cmd):
     os.system('bsub < ' + jobscript)
  
 if __name__ == "__main__":
-    TV_factor=5e6
-    Tikhonov_factor = 0.6
-    CUQI1_factor = 1e11
-    num_iter = 2
-
-    
+    TV_factor=1e7
+    Tikhonov_factor = 0.5
+    CUQI1_factor = 1e12
+    num_iter = 150
 
     for category in [1,2,3,4,5,6,7]:
- 
-        tag = str(TV_factor)+'_'+str(Tikhonov_factor)+'_'+str(CUQI1_factor)+'_'+str(num_iter)+'_'+str(category)
+        # before new all iterations are 70
+        tag = 'new_'+str(TV_factor)+'_'+str(Tikhonov_factor)+'_'+str(CUQI1_factor)+'_'+str(num_iter)+'_'+str(category)
         outputFolder = 'gbar/output'+tag
         #folder_reconstruction = 'gbar/' + str(category)
         cmd = 'python main_2.py' + ' ' + folder_training_data+str(category) + ' ' + outputFolder + ' ' + str(category) + ' ' + str(num_iter) + ' ' + str(TV_factor) + ' ' + str(Tikhonov_factor) + ' ' + str(CUQI1_factor)

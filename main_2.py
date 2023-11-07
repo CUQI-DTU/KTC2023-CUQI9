@@ -12,6 +12,7 @@ import glob
 from skimage.segmentation import chan_vese
 from EITLib import NL_main
 from EITLib.KTCRegularization_NLOpt import SMPrior
+from EITLib.segmentation import scoring_function
 import os
 
 #%%
@@ -73,7 +74,7 @@ def main():
         deltaU = Uel - Uelref
         #############################  Changed code
 
-        deltareco_pixgrid = NL_main.NL_main_2(Uel, Uelref, Inj, categoryNbr, niter=70, output_dir_name=outputFolder, TV_factor=TV_factor, Tikhonov_factor=Tikhonov_factor, CUQI1_factor=CUQI1_factor)
+        deltareco_pixgrid = NL_main.NL_main_2(Uel, Uelref, Inj, categoryNbr, niter=niter, output_dir_name=outputFolder, TV_factor=TV_factor, Tikhonov_factor=Tikhonov_factor, CUQI1_factor=CUQI1_factor)
 
         # save deltareco_pixgrid
         np.savez(outputFolder + '/' + str(objectno + 1) + '.npz', deltareco_pixgrid=deltareco_pixgrid) 
@@ -85,6 +86,14 @@ def main():
         mdic = {"reconstruction": reconstruction}
         print(outputFolder + '/' + str(objectno + 1) + '.mat')
         sp.io.savemat( outputFolder + '/' + str(objectno + 1) + '.mat',mdic)
+
+        # save reconstruction as png
+        plt.imshow(reconstruction)
+        # read real phantom from file
+        phantom = sp.io.loadmat('GroundTruths/true'+str(objectno+1)+'.mat')['truth']
+        # add title that shows the category number and score
+        plt.title('Category ' + str(categoryNbr) + ', score = ' + str(scoring_function(reconstruction, phantom)))
+        plt.savefig(outputFolder + '/' + str(objectno + 1) + '.png')
 
 if __name__ == "__main__":
     main()
