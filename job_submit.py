@@ -46,14 +46,15 @@ if __name__ == "__main__":
     CUQI1_factor = 1e11
     num_iter = 2
 
-    outputFolder = 'gbar/output'+str(TV_factor)+'_'+str(Tikhonov_factor)+'_'+str(CUQI1_factor)+'_'+str(num_iter)
     
 
     for category in [1,2,3,4,5,6,7]:
  
+        tag = str(TV_factor)+'_'+str(Tikhonov_factor)+'_'+str(CUQI1_factor)+'_'+str(num_iter)+'_'+str(category)
+        outputFolder = 'gbar/output'+tag
         #folder_reconstruction = 'gbar/' + str(category)
         cmd = 'python main_2.py' + ' ' + folder_training_data+str(category) + ' ' + outputFolder + ' ' + str(category) + ' ' + str(num_iter) + ' ' + str(TV_factor) + ' ' + str(Tikhonov_factor) + ' ' + str(CUQI1_factor)
         print(cmd)
-        submit(category,cmd)
+        submit(tag,cmd)
 
  
