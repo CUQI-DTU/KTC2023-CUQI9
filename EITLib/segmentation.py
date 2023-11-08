@@ -52,7 +52,7 @@ def otsu(deltareco_pixgrid):
             deltareco_pixgrid_segmented[ind0] = 1
             deltareco_pixgrid_segmented[ind1] = 1
 
-    return deltareco_pixgrid_segmented
+    return deltareco_pixgrid_segmented.reshape((256,256))
 
 
 def scoring_function(truth, recon):
