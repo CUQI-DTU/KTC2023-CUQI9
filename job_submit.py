@@ -41,17 +41,19 @@ def submit(jobid,cmd):
     os.system('bsub < ' + jobscript)
  
 if __name__ == "__main__":
-    TV_factor=1e7
+    TV_factor=5e5
     Tikhonov_factor = 0.5
-    CUQI1_factor = 1e12
+    CUQI1_factor = 1e10
     num_iter = 150
+    segmentation_method = 'otsu'
 
     for category in [1,2,3,4,5,6,7]:
         # before new all iterations are 70
-        tag = 'new_'+str(TV_factor)+'_'+str(Tikhonov_factor)+'_'+str(CUQI1_factor)+'_'+str(num_iter)+'_'+str(category)
+        # new2, fix otsu name
+        tag = 'new2_'+str(TV_factor)+'_'+str(Tikhonov_factor)+'_'+str(CUQI1_factor)+'_'+str(num_iter)+'_'+str(category) + '_' + segmentation_method
         outputFolder = 'gbar/output'+tag
         #folder_reconstruction = 'gbar/' + str(category)
-        cmd = 'python main_2.py' + ' ' + folder_training_data+str(category) + ' ' + outputFolder + ' ' + str(category) + ' ' + str(num_iter) + ' ' + str(TV_factor) + ' ' + str(Tikhonov_factor) + ' ' + str(CUQI1_factor)
+        cmd = 'python main_2.py' + ' ' + folder_training_data+str(category) + ' ' + outputFolder + ' ' + str(category) + ' ' + str(num_iter) + ' ' + str(TV_factor) + ' ' + str(Tikhonov_factor) + ' ' + str(CUQI1_factor) + ' ' + segmentation_method
         print(cmd)
         submit(tag,cmd)
 
