@@ -60,8 +60,9 @@ def main():
         Mpat = mat_dict2["Mpat"]
         deltaU = Uel - Uelref
         #############################  Changed code
+        #500000.0_0.5_10000000000.0_ 
 
-        deltareco_pixgrid = NL_main.NL_main(Uel, Uelref, Inj, categoryNbr, niter=70, output_dir_name=outputFolder)
+        deltareco_pixgrid = NL_main.NL_main(Uel, Uelref, Inj, categoryNbr, niter=170, output_dir_name=outputFolder)
 
         # save deltareco_pixgrid
         np.savez(outputFolder + '/' + str(objectno + 1) + '.npz', deltareco_pixgrid=deltareco_pixgrid) 
