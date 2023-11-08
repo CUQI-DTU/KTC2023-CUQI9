@@ -12,7 +12,7 @@ import glob
 from skimage.segmentation import chan_vese
 from EITLib import NL_main
 from EITLib.KTCRegularization_NLOpt import SMPrior
-from EITLib.segmentation import scoring_function
+from EITLib.segmentation import scoring_function, otsu
 import os
 
 #%%
@@ -27,6 +27,7 @@ def main():
     parser.add_argument("TV_factor", type=float)
     parser.add_argument("Tikhonov_factor", type=float)
     parser.add_argument("CUQI1_factor", type=float)
+    parser.add_argument("segmentation_method", type=str)
 
     args = parser.parse_args()
 
@@ -39,6 +40,8 @@ def main():
     TV_factor = args.TV_factor
     Tikhonov_factor = args.Tikhonov_factor
     CUQI1_factor = args.CUQI1_factor
+
+    segmentation_method = args.segmentation_method
 
     # if output folder does not exist, create it
     if not os.path.exists(outputFolder):
@@ -63,7 +66,6 @@ def main():
     vincl = vincl.T.flatten()
     #recon = NL_main(Uelref, Uelref, Mpat, categoryNbr)
 
-
     # Get a list of .mat files in the input folder
     mat_files = sorted(glob.glob(inputFolder + '/data*.mat'))
     for objectno in range (0,len(mat_files)): #compute the reconstruction for each input file
@@ -79,7 +81,10 @@ def main():
         # save deltareco_pixgrid
         np.savez(outputFolder + '/' + str(objectno + 1) + '.npz', deltareco_pixgrid=deltareco_pixgrid) 
         
-        deltareco_pixgrid_segmented = KTCScoring.cv_NLOpt(deltareco_pixgrid, log_par=1.5, linear_par=1, exp_par=0)
+        if segmentation_method == 'otsu':
+            deltareco_pixgrid_segmented = otsu(deltareco_pixgrid)
+        elif segmentation_method == 'cv':
+            deltareco_pixgrid_segmented = KTCScoring.cv_NLOpt(deltareco_pixgrid, log_par=1.5, linear_par=1, exp_par=0)
 
         ###################################  End of changed code
         reconstruction = deltareco_pixgrid_segmented
