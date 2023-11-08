@@ -1,15 +1,25 @@
+#%%
 import numpy as np
 import scipy as sp
 import matplotlib.image
 import os
 from skimage.metrics import structural_similarity as ssim
+import matplotlib.pyplot as plt
 
-inclusion_list = [1,2,3,4]
+# read npz file
+z = np.load("gbar/outputnew2_500000.0_0.5_10000000000.0_150_1_otsu/4.npz")
+plt.figure()
+print([key for key in z.keys()])
+plt.imshow(z["deltareco_pixgrid"])
+plt.savefig("gbar/outputnew2_500000.0_0.5_10000000000.0_150_1_otsu/4_z.png")
+exit()
+#%%
+inclusion_list = [1, 2, 3, 4]
 categories_list = [1,4,7]
 
 folder_ground_truth = "GroundTruths"
 folder_training_data = "TrainingData"
-folder_reconstruction = "Output"
+folder_reconstruction = "gbar/outputnew_500000.0_0.5_10000000000.0_170_"
 
 folder_output_examples = "results"
 
@@ -53,11 +63,11 @@ if __name__ == "__main__":
         category_scores = []
         
         print("Reconstructing category number: " + str(category))
-        os.system("python3 main.py " + folder_training_data + " " + folder_reconstruction + " " + str(category))
+
         # main.main(folder_training_data, folder_reconstruction, category)
         for inclusion in inclusion_list:
             ## Save example image
-            reconstruction = load_mat(folder_reconstruction, inclusion, ground_truth=False)
+            reconstruction = load_mat(folder_reconstruction+str(category), inclusion, ground_truth=False)
             file_name = folder_output_examples + "/" + str(category) + str(inclusion) + ".png"
             save_as_image(reconstruction, file_name)
             
