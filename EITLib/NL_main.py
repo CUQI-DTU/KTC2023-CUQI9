@@ -258,9 +258,11 @@ def NL_main(Uel_ref, background_Uel_ref, Imatr, difficulty_level, niter=50, outp
     else:
         x0 = 0.8 * np.ones(myeit.H_sigma.dim())
     
-    
+        #5e5
+        #0.5
+        #1e10 
     tv_reg = TV_reg(myeit.H_sigma, None, 1, 1e-4)
-    target_scipy_TV = Target_scipy_TV( myeit, tv_reg, reg_CUQI1_obj, smprior=smprior, Imatr=Imatr, Uel_data=Uel_data, factor=5e6, factor_sm=0.6, factor_CUQI1=1e11)
+    target_scipy_TV = Target_scipy_TV( myeit, tv_reg, reg_CUQI1_obj, smprior=smprior, Imatr=Imatr, Uel_data=Uel_data, factor=5e5, factor_sm=0.5, factor_CUQI1=1e10)
     #%%
     # time:
     import time
